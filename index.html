@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>Prairos — Human judgment, precisely placed.</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body,#root{height:100%}
+  :root{--c-bg:#f5f1e9}
+  @media (prefers-color-scheme: dark){:root{--c-bg:#0f1720}}
+  body{background:var(--c-bg);-webkit-text-size-adjust:100%}
+  @media print{nav,header button{display:none!important}main{padding:0!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+
+/* ── COLORS ──
+   Brand colors are constant (identity). Surface colors are CSS variables so the
+   app can switch between light and dark without touching any component. */
+const N='var(--c-n)',T='var(--c-t)',O='#e0883d',G='#c9a84c',GR='var(--c-gr)',R='#dc3a3a';
+const BG='var(--c-bg)',CA='var(--c-ca)',BO='var(--c-bo)';
+const TX='var(--c-tx)',TM='var(--c-tm)',TL='var(--c-tl)';
+const TLt='var(--c-tlt)',OLt='var(--c-olt)',GLt='var(--c-glt)',RLt='var(--c-rlt)',GLd='var(--c-gld)';
+/* Raw brand hexes for the SVG logo, which cannot use CSS vars in all renderers */
+const HEX={n:'#16395c',t:'#2b9da0',o:'#e0883d'};
+const THEMES={
+  light:{'--c-n':'#16395c','--c-t':'#2b9da0','--c-gr':'#2d7a5f','--c-bg':'#f5f1e9','--c-ca':'#ffffff','--c-bo':'#e0dad0','--c-tx':'#1a2834','--c-tm':'#4b5563','--c-tl':'#718096','--c-tlt':'#e5f7f7','--c-olt':'#fdf0e8','--c-glt':'#e5f3ee','--c-rlt':'#fef2f2','--c-gld':'#fdf6e2','--c-shadow':'rgba(22,57,92,0.10)'},
+  dark:{'--c-n':'#5fb0d4','--c-t':'#3fc4c4','--c-gr':'#4cc08a','--c-bg':'#0f1720','--c-ca':'#1a2530','--c-bo':'#2c3a47','--c-tx':'#e8eef2','--c-tm':'#aab8c4','--c-tl':'#7d8b97','--c-tlt':'#15333a','--c-olt':'#33271c','--c-glt':'#16302a','--c-rlt':'#3a1f1f','--c-gld':'#322a14','--c-shadow':'rgba(0,0,0,0.45)'},
+};
+
+const CONTACT_EMAIL='prairostherelaymethod@gmail.com';
+const VERSION='v0.9 (Tester)'; /* bump on each iteration */
+/* Paste your Google Apps Script Web App URL between the quotes below.
+   Until you do, the tool works normally and simply skips auto-sending. */
+const SHEET_URL='https://script.google.com/macros/s/AKfycbyK7pbhwWNTH49eqixxxaQe7ujApzjPCLjt3izXKjT25LtQ4A9wd6AkhBS1EXHvdfjD/exec'; /* live endpoint */
+
+/* ── DATA ──
+   Each intelligence has a plain-language label the USER sees, plus an internal
+   technical key (`tech`) shown only on the Founder view. */
+const INTEL=[
+  {k:'fluid',        label:'Solving new or unfamiliar problems', tech:'Fluid', p:'My early insight becomes valuable when I turn it into one clear test, example, or decision.'},
+  {k:'crystallized', label:'Applying hard-won experience',       tech:'Crystallized', p:'My experience is pattern memory waiting to be packaged into proof.'},
+  {k:'systems',      label:'Seeing how things connect',          tech:'Systems', p:'I am not overcomplicating the work; I am making hidden connections visible.'},
+  {k:'analytical',   label:'Working from evidence and logic',    tech:'Analytical', p:'My clarity comes from evidence, structure, and separating signal from noise.'},
+  {k:'emotional',    label:'Reading and managing emotion',       tech:'Emotional', p:'My read on emotion is information; my next move is to name it and use it responsibly.'},
+  {k:'social',       label:'Reading the room and influencing',   tech:'Social', p:'My message has to meet the room before it can move the room.'},
+  {k:'cultural',     label:'Adapting across different groups',   tech:'Cultural-Contextual', p:'Adapting to context is not watering things down; it is respect for the people in the room.'},
+  {k:'practical',    label:'Getting things done under real limits', tech:'Practical', p:'My value is turning good ideas into usable action under real constraints.'},
+  {k:'creative',     label:'Generating new ideas and options',   tech:'Creative', p:'My originality becomes useful when I give it structure, timing, and proof.'},
+  {k:'linguistic',   label:'Putting things into clear words',    tech:'Linguistic', p:'Clear language is how my judgment travels to other people.'},
+  {k:'quantitative', label:'Working with numbers and likelihood',tech:'Quantitative', p:'Measurement gives my judgment a second witness.'},
+  {k:'visual',       label:'Mapping structure and flow visually',tech:'Visual-Spatial', p:'When words are not enough, I can make the pattern visible.'},
+  {k:'metacognitive',label:'Knowing the limits of my own thinking',tech:'Metacognitive', p:'Strong judgment includes the humility to test its own limits.'},
+];
+const SCATS=[
+  {k:'clarity',    label:'Clarity',           d:'I can explain my judgment clearly.'},
+  {k:'precision',  label:'Precision',         d:'I can name the specific pattern without overgeneralizing.'},
+  {k:'evidence',   label:'Evidence',          d:'I can back up what I say with real examples and impact.'},
+  {k:'translation',label:'Reaching my audience', d:'I can tailor the message for the people who need to act on it.'},
+  {k:'aiBound',    label:'Working alongside AI', d:'I can show where AI helps and where I stay accountable.'},
+  {k:'placement',  label:'Knowing my next move', d:'I know whether to speak up, document, raise it, reposition, or move on.'},
+  {k:'fluidR',     label:'Handling new problems', d:'I can reason through new, uncertain, or AI-shaped situations.'},
+  {k:'crystP',     label:'Turning experience into proof', d:'I can convert my experience into credible evidence.'},
+];
+const PATHS=[
+  {k:'employment',label:'Strengthen my employability',tag:'Employment Growth',p:'Today I am not listing tasks. I am proving the judgment behind the tasks.'},
+  {k:'business',label:'Build a business or independent income path',tag:'Business Kickoff',p:'A paid offer begins where my strongest judgment solves a real problem for someone else.'},
+  {k:'both',label:'Build both so I have options',tag:'Dual-Path Optionality',p:'The same proof can strengthen my role today and create options for tomorrow.'},
+  {k:'unclear',label:'I do not know yet — help me figure it out',tag:'Unknown / Needs Clarity',p:'Start where you are. Clarity is the first piece of proof.'},
+];
+const SEEKING=['Clarity','Confidence','Words for my career','Business kickoff structure','Translating my skills','Getting ready for AI at work','Income options','Community or mentorship'];
+const STRESS_IT=['Mental overload','Emotional frustration','Physical fatigue','Values feel out of alignment','Anxiety about AI','Feeling dismissed or invisible at work','Unclear next step','I feel steady enough to continue'];
+const GRANT_IT=[
+  {k:'nc',label:'North Carolina-based operations stated'},
+  {k:'biz',label:'Business structure decision made'},
+  {k:'interviews',label:'15 customer discovery interviews planned/completed'},
+  {k:'protos',label:'3–5 prototype tests completed'},
+  {k:'quotes5',label:'5 usable quotes/testimonials'},
+  {k:'funds',label:'$10,000 use-of-funds plan drafted'},
+  {k:'advantage',label:'Competitive advantage statement drafted'},
+  {k:'model',label:'Scalable business model drafted'},
+  {k:'screens',label:'Prototype screenshots ready'},
+  {k:'review',label:'Outside reviewer feedback complete'},
+];
+const MILES_IT=[
+  {k:'precision',label:'Pattern Precision Statement',view:'precision'},
+  {k:'jmap',label:'Judgment Evidence Map',view:'jmap'},
+  {k:'aibound',label:'Working-With-AI Map',view:'aibound'},
+  {k:'story',label:'Judgment Story',view:'story'},
+  {k:'placement',label:'Placement Action Plan',view:'place'},
+];
+/* Plain-language proof-pace action types */
+const PACE_T=[
+  {k:'clarity',label:'Got clearer on something'},
+  {k:'proof',label:'Created a piece of proof'},
+  {k:'shared',label:'Shared my proof with someone'},
+  {k:'understanding',label:'Checked whether they understood'},
+  {k:'placement',label:'Took a step toward an opportunity'},
+  {k:'signal',label:'Got a response or interest'},
+];
+/* Understanding-check option lists */
+const UC_WHO=['Manager','Recruiter','Mentor','Buyer','Partner','Colleague','Community member'];
+const UC_HOW=[
+  'I will ask them to repeat back what stood out',
+  'I will ask what part was clear or unclear',
+  'I will ask what they would do next with this information',
+  'I will ask whether this changed how they see my role or value',
+  'I will ask if they would refer, recommend, sponsor, hire, or pay',
+];
+const UC_RESULT=[
+  'I have not shared it yet',
+  'They understood it',
+  'They partly understood it',
+  'They missed the point',
+  'I need to simplify it',
+  'I need a different audience',
+];
+/* If/then next-step logic keyed off the result */
+const UC_NEXT={
+  'They understood it':'They got it. Place this proof where it counts — résumé, interview, pitch, or a manager conversation.',
+  'They partly understood it':'You are close. Simplify the language and try again — cut jargon, lead with the one thing that matters most.',
+  'They missed the point':'Revise your Judgment Story. The thinking is there; the telling needs work. Lead with what you noticed before others did.',
+  'I need to simplify it':'Trim it to one clear sentence about the judgment behind the work, then build back up.',
+  'I need a different audience':'The proof may be fine — the room was wrong. Pick someone who can actually act on it.',
+  'I have not shared it yet':'When you are ready, share it with the person you named. If today is heavy, just rehearse one sentence out loud.',
+};
+/* The 7-step Proof Loop */
+const PROOF_LOOP=[
+  {step:'What bothered me',key:'frustration'},
+  {step:'The pattern I noticed',key:'pattern'},
+  {step:'The judgment I used',key:'judgment'},
+  {step:'The proof I built',key:'proof'},
+  {step:'Who I shared it with',key:'share'},
+  {step:'What they understood',key:'understand'},
+  {step:'What I will do next',key:'next'},
+];
+const PLACE_D=['Résumé','Interview','Manager conversation','LinkedIn post','Portfolio','Buyer conversation','Grant / partner pitch','Community / mentorship conversation'];
+const AUDIENCE_T=['A leader or executive','In plain, everyday language','Someone technical','Someone who needs to feel it','A potential buyer','A potential partner','My community'];
+/* Tailored placement suggestions keyed off where they'll use the proof */
+const PLACE_SUGGEST={
+  'Résumé':'Rewrite one résumé bullet so it names the judgment, not just the task. Example: instead of "Managed reports," write "Caught a data error others missed and prevented a costly mistake."',
+  'Interview':'Practice telling your Judgment Story out loud in under 90 seconds. Lead with what you noticed before others did.',
+  'Manager conversation':'Ask your manager for 15 minutes. Share one example where your judgment protected an outcome, and ask how to make that visible in your role.',
+  'LinkedIn post':'Write a short post about one thing you caught or decided that mattered. End with what it taught you. Keep it human, not boastful.',
+  'Portfolio':'Add your Judgment Story as a short case study. Use the Situation → Challenge → Decision → Result structure.',
+  'Buyer conversation':'Turn your strongest judgment into a one-line offer: "I help [who] with [problem] by [the judgment only you bring]."',
+  'Grant / partner pitch':'Lead your pitch with the problem your judgment solves, then the proof you have gathered here.',
+  'Community / mentorship conversation':'Share what you learned the hard way with someone a step behind you. Teaching is proof.',
+};
+const NAV_ITEMS=[
+  {id:'welcome',icon:'⌂',label:'Home'},
+  {id:'info',icon:'ℹ',label:'Info & FAQ'},
+  {id:'intake',icon:'⊞',label:'Get Started'},
+  {id:'scores',icon:'◎',label:'Where You Are Now'},
+  {id:'intel',icon:'◈',label:'Your Strengths'},
+  {id:'precision',icon:'◇',label:'Name the Pattern'},
+  {id:'jmap',icon:'⚖',label:'Show Your Judgment'},
+  {id:'aibound',icon:'⊡',label:'Working With AI'},
+  {id:'story',icon:'❋',label:'Your Judgment Story'},
+  {id:'place',icon:'◐',label:'Your Next Move'},
+  {id:'pace',icon:'⊕',label:'Track Your Progress'},
+  {id:'milestones',icon:'✓',label:'Own Your Work'},
+  {id:'final',icon:'★',label:'Finish & Reflect'},
+  {id:'udash',icon:'◑',label:'My Dashboard'},
+];
+
+/* ── STATE ── */
+const defSc=()=>Object.fromEntries(SCATS.map(c=>[c.k,0]));
+const mkSt=()=>({
+  view:'welcome',
+  name:'',email:'',pid:'',consentC:false,consentT:false,
+  path:'',seeking:[],
+  intake:{sit:'',over:'',out:'',ai:'',opp:'',cst:'',dst:'',courage:''},
+  stress:{checks:[]},
+  cap:'normal',
+  bScore:defSc(),fScore:defSc(),
+  intel:Object.fromEntries(INTEL.map(i=>[i.k,{s:0,p:0,pl:0}])),
+  pf:{what:'',rep:'',lim:'',scope:'',stmt:''},
+  jm:{noticed:'',ctx:'',risk:'',ev:'',rec:'',resp:'',def:''},
+  aiRows:[],aiRC:1,aiSum:'',
+  sf:{sit:'',chal:'',act:'',res:'',draft:''},
+  pla:{dests:[],aud:'',n7:'',n30:'',paid:'',ucWho:'',ucWhat:'',ucHow:'',ucResult:''},
+  pace:[],paceF:{type:'clarity',desc:'',date:new Date().toISOString().slice(0,10)},
+  miles:Object.fromEntries(MILES_IT.map(m=>[m.k,{status:'draft',owned:''}])),
+  testy:{bef:'',aft:'',useful:'',rec:0,pay:'',refer:'',refName:'',refContact:'',perm:'Private feedback only'},
+  feedback:{want:false,note:''},
+  pipeline:[],
+  onboard:{leadC:false,fitC:false,pathA:false,conC:false,linkS:false,remS:false,ckS:false,tesR:false},
+  grant:Object.fromEntries(GRANT_IT.map(g=>[g.k,false])),
+  done:[],startAt:null,
+  activity:[],
+  wtp:'',prange:'',mua:'',iuc:'',fur:'',
+});
+
+const DEF_AI_ROWS=[
+  {id:1,act:'Writing a first draft (email, report, summary)',ai:'Producing a rough first version to react to',newp:'Shaping it for this specific situation',exp:'Knowing the right words for your field',human:'Accuracy, tone, confidentiality, the final sign-off',risk:'Saying something wrong or overstated'},
+  {id:2,act:'Analyzing information or data',ai:'Surfacing patterns quickly',newp:'Thinking through what-ifs',exp:'Comparing against what you have seen before',human:'What it means, the ethics, the decision',risk:'False confidence in a wrong answer'},
+  {id:3,act:'Planning or prioritizing',ai:'Listing options and a possible order',newp:'Working through what is unclear',exp:'Applying lessons you have already learned',human:'The trade-offs, the limits, who it affects',risk:'A plan that does not fit reality'},
+];
+
+
+/* ── DRAFT GENERATORS (offline, from the user's own words) ── */
+const cap1=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+const genPrec=pf=>cap1(`I keep noticing a pattern: ${pf.what||'[the specific thing you are seeing]'}. It shows up in ${pf.scope||'[the specific situation]'}, and it leads to risk, delay, or quality problems. The evidence is ${pf.rep||'[your specific examples]'}. To stay fair, I should note where it does not apply: ${pf.lim||'[where this pattern does not hold]'}. My next responsible step is to document this and raise it with care.`);
+const genJDef=jm=>cap1(`My judgment was the disciplined work of noticing ${jm.noticed||'[what you noticed]'}, understanding ${jm.ctx||'[the context]'}, weighing ${jm.risk||'[the risk or trade-off]'}, and recommending ${jm.rec||'[what you recommended]'} — all to protect ${jm.resp||'[the outcome you protected]'}.`);
+const genAISum=rows=>{const t=rows.map(r=>r.act).filter(Boolean).slice(0,3).join('; ');const hu=[...new Set(rows.map(r=>r.human).filter(Boolean))].slice(0,2).join(', ');return cap1(`AI can help me with ${t||'[the tasks you listed]'}. But the thinking for new situations, and the experience behind my decisions, stays with me — and I remain accountable for ${hu||'accuracy, ethics, context, and the final decision'}.`);};
+const genStory=sf=>cap1(`In ${sf.sit||'[the situation]'}, I noticed something before it was obvious to others. The challenge was ${sf.chal||'[the constraint or difficulty]'}. I weighed the trade-offs and ${sf.act||'[what you did]'}. The result: ${sf.res||'[the outcome or lesson]'}. This is my judgment at work — I saw clearly, thought it through responsibly, chose well, and communicated it so others could act.`);
+
+/* ── CALCS ── */
+const sumS=sc=>Object.values(sc).reduce((a,b)=>a+(b||0),0);
+const getGaps=intel=>INTEL.map(t=>({...t,s:intel[t.k]?.s||0,p:intel[t.k]?.p||0,pl:intel[t.k]?.pl||0,gap:(intel[t.k]?.s||0)-(intel[t.k]?.p||0)})).sort((a,b)=>b.gap-a.gap);
+const getRouter=intel=>{const gaps=getGaps(intel);const topS=[...gaps].sort((a,b)=>b.s-a.s)[0];const hidden=gaps.find(g=>g.s>=4&&g.p<=2);const blocking=gaps.find(g=>g.s<=2&&g.pl>=3);return{topS,hidden,blocking,rec:hidden?`Build proof for "${hidden.label}" — it is a real strength that is not yet visible.`:blocking?`"${blocking.label}" may be getting in your way. A little support here could unlock placement.`:`Package your "${topS?.label||'strongest area'}" into proof.`,prompt:INTEL.find(i=>i.k===(hidden||topS||{k:''}).k)?.p||''};};
+/* Plain-language insight for the user's final summary */
+const getInsight=intel=>{const r=getRouter(intel);if(r.hidden)return`Your biggest opportunity right now is "${r.hidden.label}." You are clearly strong here, but it is not yet visible to the people who matter. That makes it the highest-value place to build one solid piece of proof.`;if(r.blocking)return`One area — "${r.blocking.label}" — may be holding you back more than it should. A small, focused step here could open up your next move.`;if(r.topS)return`Your strongest area is "${r.topS.label}." Lead with it. The fastest way to be recognized is to make this strength impossible to miss.`;return'Complete the Strengths page to see your personalized insight here.';};
+const getLevel=done=>{if(done.includes('milestones'))return{n:5,label:'Ready to Place',d:'You have enough proof to move toward a real opportunity.'};if(done.includes('story'))return{n:4,label:'Judgment Packaged',d:'Your thinking is becoming portable.'};if(done.includes('jmap'))return{n:3,label:'Evidence Captured',d:'You are turning invisible work into proof.'};if(done.includes('intake'))return{n:2,label:'Pattern Named',d:'You moved from broad frustration to a specific pattern.'};return{n:1,label:'Signal Noticed',d:'You have started naming what matters.'};};
+/* Derive the Proof Loop status badge from the understanding-check result + signals */
+const getLoopStatus=st=>{
+  const r=st.pla.ucResult||'';
+  const hasSignal=(st.pace||[]).some(a=>a.type==='signal')||(st.pla.paid&&st.pla.paid.trim());
+  if(hasSignal&&r==='They understood it')return{label:'Signal received',clr:GR,bg:GLt};
+  if(r==='They understood it')return{label:'Understood',clr:GR,bg:GLt};
+  if(r==='They partly understood it'||r==='I need to simplify it')return{label:'Needs revision',clr:O,bg:OLt};
+  if(r==='They missed the point'||r==='I need a different audience')return{label:'Needs revision',clr:O,bg:OLt};
+  if(r&&r!=='I have not shared it yet')return{label:'Shared',clr:T,bg:TLt};
+  if(st.sf.draft)return{label:'Not shared yet',clr:TL,bg:BG};
+  return{label:'Building proof',clr:TL,bg:BG};
+};
+const getGrantPct=grant=>Math.round(Object.values(grant).filter(Boolean).length/GRANT_IT.length*100);
+const weekPace=actions=>{const wa=Date.now()-7*864e5;return actions.filter(a=>new Date(a.date).getTime()>=wa).length;};
+
+/* ── STORAGE ── */
+async function saveState(st){
+  try {
+    const data=JSON.stringify(st);
+    if(window.storage&&window.storage.set){await window.storage.set('prairos_tester_clean',data);}
+    else{localStorage.setItem('prairos_tester_clean',data);}
+    return true;
+  } catch(e){console.error('Save failed:',e);return false;}
+}
+async function loadState(){
+  try {
+    if(window.storage&&window.storage.get){const r=await window.storage.get('prairos_tester_clean');if(r)return JSON.parse(r.value);}
+    const local=localStorage.getItem('prairos_tester_clean');
+    if(local)return JSON.parse(local);
+  } catch(e){console.error('Load failed:',e);}
+  return null;
+}
+
+/* Flattens a completed session into one row of fields and sends it to the
+   Google Sheet. Uses no-cors + form-encoding so it works from a static file
+   without triggering CORS errors. Silently no-ops if SHEET_URL is blank. */
+async function submitToSheet(st){
+  if(!SHEET_URL)return false;
+  try{
+    const detected=getRouter(st.intel);
+    const payload={
+      submittedAt:new Date().toISOString(),
+      version:VERSION,
+      pid:st.pid||'', name:st.name||'', email:st.email||'',
+      consentContact:st.consentC?'yes':'no', consentTestimonial:st.consentT?'yes':'no',
+      path:PATHS.find(x=>x.k===st.path)?.tag||'', seeking:(st.seeking||[]).join('; '),
+      beforeScore:sumS(st.bScore), afterScore:sumS(st.fScore), scoreChange:sumS(st.fScore)-sumS(st.bScore),
+      strongestArea:detected.topS?.label||'', hiddenStrength:detected.hidden?.label||'',
+      situation:st.intake.sit||'', overgeneralize:st.intake.over||'', desiredOutcome:st.intake.out||'',
+      usingAI:st.intake.ai||'', opportunity:st.intake.opp||'',
+      currentSelfTalk:st.intake.cst||'', desiredSelfTalk:st.intake.dst||'', courageStep:st.intake.courage||'',
+      patternStatement:st.pf.stmt||'', judgmentSummary:st.jm.def||'',
+      aiBoundarySummary:st.aiSum||'', judgmentStory:st.sf.draft||'',
+      placementWhere:(st.pla.dests||[]).join('; '), placementAudience:st.pla.aud||'',
+      ucWho:st.pla.ucWho||'', ucWhat:st.pla.ucWhat||'', ucHow:st.pla.ucHow||'', ucResult:st.pla.ucResult||'',
+      next7days:st.pla.n7||'', next30days:st.pla.n30||'', successSignal:st.pla.paid||'',
+      reflectionBefore:st.testy.bef||'', reflectionAfter:st.testy.aft||'', mostUseful:st.testy.useful||'',
+      wouldRecommend1to5:st.testy.rec||'', wouldPay:st.testy.pay||st.wtp||'', priceRange:st.prange||'',
+      wouldRefer:st.testy.refer||'', referralName:st.testy.refName||'', referralContact:st.testy.refContact||'',
+      testimonialPermission:st.testy.perm||'',
+      wantsFeedback:st.feedback.want?'yes':'no', feedbackNote:st.feedback.note||'',
+      intendedFirstUse:st.iuc||'', whyNow:st.fur||'',
+    };
+    const body=new URLSearchParams();
+    Object.entries(payload).forEach(([k,v])=>body.append(k,String(v)));
+    await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
+    return true;
+  }catch(e){console.error('Sheet submit failed:',e);return false;}
+}
+
+/* ── STYLE HELPERS ── */
+const SX={
+  card:(ex={})=>({background:CA,borderRadius:12,padding:'20px 24px',boxShadow:'0 2px 10px rgba(22,57,92,0.08)',marginBottom:16,...ex}),
+  h2:{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:22,fontWeight:800,color:N,marginBottom:4,marginTop:0},
+  h3:{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700,color:N,marginBottom:8,marginTop:0},
+  lbl:{display:'block',fontSize:11,fontWeight:700,color:TM,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'},
+  inp:{width:'100%',boxSizing:'border-box',border:`1px solid ${BO}`,borderRadius:8,padding:'8px 12px',fontSize:13,fontFamily:'inherit',color:TX,background:CA,outline:'none'},
+  ta:{width:'100%',boxSizing:'border-box',border:`1px solid ${BO}`,borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'inherit',color:TX,background:CA,outline:'none',resize:'vertical',lineHeight:1.6},
+  sel:{width:'100%',boxSizing:'border-box',border:`1px solid ${BO}`,borderRadius:8,padding:'8px 12px',fontSize:13,fontFamily:'inherit',color:TX,background:CA,outline:'none'},
+};
+
+/* ── UI COMPONENTS ── */
+function Btn({children,onClick,variant='navy',size='md',style:ex={},disabled}){
+  const v={navy:{bg:N,c:CA},teal:{bg:T,c:CA},orange:{bg:O,c:CA},green:{bg:GR,c:CA},gold:{bg:G,c:CA},ghost:{bg:'transparent',c:CA,b:'1px solid rgba(255,255,255,0.35)'},secondary:{bg:BG,c:TX,b:`1px solid ${BO}`},danger:{bg:RLt,c:R,b:`1px solid ${R}`}}[variant]||{bg:N,c:CA};
+  const sz=size==='sm'?{padding:'5px 12px',fontSize:12}:size==='lg'?{padding:'11px 24px',fontSize:14}:{padding:'8px 16px',fontSize:13};
+  return(<button type="button" onClick={disabled?undefined:onClick} style={{...sz,borderRadius:8,fontFamily:'inherit',fontWeight:600,cursor:disabled?'not-allowed':'pointer',border:v.b||'none',background:disabled?BO:v.bg,color:disabled?TL:v.c,transition:'all 0.15s',display:'inline-flex',alignItems:'center',gap:6,...ex}}>{children}</button>);
+}
+function Fld({label:lb,children,hint}){return(<div style={{marginBottom:14}}>{lb&&<label style={SX.lbl}>{lb}</label>}{hint&&<div style={{fontSize:11,color:TL,marginBottom:5,lineHeight:1.5}}>{hint}</div>}{children}</div>);}
+function Inp({value,onChange,placeholder,type='text',style:ex={}}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={{...SX.inp,...ex}}/>;}
+function Ta({value,onChange,placeholder,rows=3,style:ex={}}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...SX.ta,...ex}}/>;}
+function Sel({value,onChange,options,placeholder,style:ex={}}){return(<select value={value} onChange={onChange} style={{...SX.sel,...ex}}>{placeholder&&<option value="">{placeholder}</option>}{options.map(o=>typeof o==='string'?<option key={o} value={o}>{o}</option>:<option key={o.k} value={o.k}>{o.label}</option>)}</select>);}
+function Badge({text,clr=N,bg=TLt,style:ex={}}){return(<span style={{display:'inline-block',padding:'3px 10px',borderRadius:100,fontSize:11,fontWeight:600,background:bg,color:clr,border:`1px solid ${clr}25`,...ex}}>{text}</span>);}
+function PBar({v,max=100,clr=T,style:ex={}}){return(<div style={{background:BO,borderRadius:100,height:8,overflow:'hidden',...ex}}><div style={{width:`${Math.min(100,(v/max)*100)}%`,height:'100%',background:clr,borderRadius:100,transition:'width 0.4s'}}/></div>);}
+function MCard({label,value,sub,clr=N}){return(<div style={{background:CA,borderRadius:12,padding:'16px 18px',boxShadow:'0 1px 8px rgba(22,57,92,0.07)'}}><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:32,fontWeight:800,color:clr}}>{value}</div><div style={{fontSize:12,fontWeight:600,color:TM,marginTop:2}}>{label}</div>{sub&&<div style={{fontSize:11,color:TL,marginTop:1}}>{sub}</div>}</div>);}
+function Alrt({children,type='info',style:ex={}}){const c={info:{bg:TLt,clr:'#0e6676',b:`1px solid ${T}40`},warn:{bg:GLd,clr:'#7a5a00',b:'1px solid rgba(201,168,76,0.4)'},success:{bg:GLt,clr:'#1a5c40',b:'1px solid rgba(45,122,95,0.3)'},danger:{bg:RLt,clr:R,b:`1px solid ${R}30`}}[type]||{bg:TLt,clr:'#0e6676',b:`1px solid ${T}40`};return(<div style={{padding:'12px 16px',borderRadius:10,fontSize:13,lineHeight:1.6,background:c.bg,color:c.clr,border:c.b,...ex}}>{children}</div>);}
+function DraftBox({title,value,onChange,rows=5}){
+  return(<div style={SX.card()}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+      <h3 style={{...SX.h3,marginBottom:0}}>{title}</h3>
+      <span style={{fontSize:11,color:TL}}>Your draft — edit freely</span>
+    </div>
+    <Ta value={value} onChange={onChange} rows={rows}/>
+  </div>);
+}
+function NextBtn({onClick,children='Continue →'}){return(<div style={{display:'flex',justifyContent:'flex-end'}}><Btn onClick={onClick} variant="navy" size="lg">{children}</Btn></div>);}
+
+/* Wordmark with the "i" dot rendered as the orange node (round), matching the logo */
+function Wordmark({size=18,color=N}){
+  const dot=size*0.2;
+  return(
+    <span style={{fontWeight:800,fontSize:size,letterSpacing:'-0.02em',lineHeight:1,color,display:'inline-flex',alignItems:'baseline'}}>
+      Pra<span style={{position:'relative',display:'inline-block'}}>ı<span style={{position:'absolute',top:`-${size*0.30}px`,left:'50%',transform:'translateX(-50%)',width:dot,height:dot,background:O,borderRadius:'50%'}}/></span>ros
+    </span>
+  );
+}
+
+function Logo({size=32,reversed=false}){
+  // reversed=true renders light strokes for use on the navy banner (keeps orange accent)
+  const ring=reversed?'rgba(255,255,255,0.55)':'var(--c-t)';
+  const tree=reversed?'#ffffff':'var(--c-n)';
+  const node=reversed?'rgba(255,255,255,0.85)':'var(--c-t)';
+  return(
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      <path d="M44 11 A40 40 0 0 0 12 44" stroke={ring} strokeWidth="4.5" strokeLinecap="round"/>
+      <path d="M56 11 A40 40 0 0 1 88 44" stroke={ring} strokeWidth="4.5" strokeLinecap="round"/>
+      <path d="M13 56 A40 40 0 0 0 87 56" stroke={tree} strokeWidth="4.5" strokeLinecap="round"/>
+      <line x1="50" y1="82" x2="50" y2="50" stroke={tree} strokeWidth="5" strokeLinecap="round"/>
+      <path d="M50 52 C44 44 38 40 30 37" stroke={tree} strokeWidth="4.5" strokeLinecap="round"/>
+      <path d="M50 52 C56 44 62 40 70 37" stroke={tree} strokeWidth="4.5" strokeLinecap="round"/>
+      <path d="M50 50 C49 42 50 36 50 32" stroke={tree} strokeWidth="4" strokeLinecap="round"/>
+      <line x1="30" y1="37" x2="22" y2="33" stroke={tree} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="70" y1="37" x2="78" y2="33" stroke={tree} strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="50" cy="11" r="6.5" fill={O}/>
+      <circle cx="30" cy="37" r="4.5" fill={node}/>
+      <circle cx="70" cy="37" r="4.5" fill={node}/>
+      <circle cx="50" cy="82" r="5" fill={node}/>
+    </svg>
+  );
+}
+
+/* The Prairos Proof Loop — a simple vertical 7-step loop. `activeIdx` highlights
+   how far the user has come; `compact` renders a smaller version for Home. */
+function ProofLoop({activeIdx=-1,compact=false}){
+  return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
+      {PROOF_LOOP.map((s,i)=>{
+        const done=i<=activeIdx;
+        return(
+          <div key={s.key} style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:compact?'5px 12px':'8px 16px',borderRadius:100,background:done?N:BG,border:`1px solid ${done?N:BO}`,minWidth:compact?180:220,justifyContent:'center'}}>
+              <span style={{width:18,height:18,borderRadius:'50%',background:done?O:BO,color:done?'#fff':TL,fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</span>
+              <span style={{fontSize:compact?11:12,fontWeight:600,color:done?'#fff':TM}}>{s.step}</span>
+            </div>
+            {i<PROOF_LOOP.length-1&&<div style={{width:2,height:compact?10:14,background:done?N:BO}}/>}
+          </div>
+        );
+      })}
+      <div style={{fontSize:11,color:TL,marginTop:8,display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14}}>↺</span> stronger proof, next time around</div>
+    </div>
+  );
+}
+
+
+/* ── VIEWS ── */
+function WelcomeView({st,set}){
+  return(
+    <div style={{maxWidth:680,margin:'0 auto',padding:'32px 0'}}>
+      <div style={{textAlign:'center',marginBottom:36}}>
+        <Logo size={76}/>
+        <div style={{margin:'14px 0 2px'}}><Wordmark size={44} color={N}/></div>
+        <div style={{fontSize:18,color:T,fontWeight:600,marginBottom:6}}>Human judgment, precisely placed.</div>
+        <div style={{fontSize:13,color:TM,fontWeight:600,marginBottom:16}}>Tech-enabled. Human-centered. Built to make judgment visible.</div>
+        <p style={{fontSize:14,color:TM,lineHeight:1.75,maxWidth:520,margin:'0 auto'}}>Prairos helps you use technology without losing sight of the human judgment behind your work. You do not need to fake confidence — you need one honest piece of proof at a time.</p>
+      </div>
+
+      <Alrt type="warn" style={{marginBottom:20}}>
+        <strong>Privacy Notice:</strong> Do not enter confidential employer information, customer data, trade secrets, protected health information, legal case details, private employee information, or names of individuals unless you have the right to share them. Use general descriptions where possible.<br/>
+        <span style={{fontSize:11,marginTop:4,display:'block',opacity:0.85}}>Prairos is a professional-development prototype. It is not legal, HR, clinical, hiring, medical, crisis, or employment-selection advice. It does not guarantee employment, income, promotion, wage, or business outcomes. Your work is saved on your own device as you go. When you choose "Finish & Send My Results" at the end, your responses are sent to the Prairos team so we can learn from this validation round.</span>
+      </Alrt>
+
+      <div style={SX.card({marginBottom:20})}>
+        <h3 style={{...SX.h3,marginBottom:14}}>What you will build</h3>
+        {[
+          {icon:'◇',title:'A clear statement of the pattern you see',desc:'Name what is really happening, without overgeneralizing.'},
+          {icon:'⚖',title:'A map of your judgment',desc:'Show what you notice, weigh, and protect.'},
+          {icon:'⊡',title:'A working-with-AI map',desc:'Make clear where AI helps and where you stay accountable.'},
+          {icon:'❋',title:'Your judgment story',desc:'A short, usable account of your professional judgment.'},
+          {icon:'◐',title:'A concrete next move',desc:'One step to make your proof visible where it counts.'},
+        ].map(i=>(
+          <div key={i.title} style={{display:'flex',gap:12,alignItems:'flex-start',marginBottom:10}}>
+            <div style={{width:28,height:28,background:TLt,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>{i.icon}</div>
+            <div><div style={{fontSize:13,fontWeight:700,color:N}}>{i.title}</div><div style={{fontSize:12,color:TM}}>{i.desc}</div></div>
+          </div>
+        ))}
+      </div>
+
+      <div style={SX.card({marginBottom:16})}>
+        <div style={{fontSize:11,fontWeight:700,color:T,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>What Prairos is</div>
+        <div style={{fontSize:14,color:TX,lineHeight:1.65}}>Prairos is a tech-enabled, human-centered AI-readiness tool that helps underrecognized professionals turn hidden judgment into visible proof.</div>
+      </div>
+
+      <div style={SX.card({background:`linear-gradient(135deg,${N},#1f4f75)`,color:CA,marginBottom:20})}>
+        <div style={{fontSize:16,fontWeight:600,lineHeight:1.6,marginBottom:4}}>"Do not fake it. Build proof until the room can see it."</div>
+        <div style={{fontSize:11,opacity:0.6}}>Prairos core principle</div>
+      </div>
+
+      <div style={SX.card({marginBottom:20})}>
+        <h3 style={{...SX.h3,marginBottom:4}}>The Prairos Proof Loop</h3>
+        <p style={{fontSize:12,color:TM,marginBottom:16}}>This is the full path you'll walk — ending not at a finished worksheet, but at someone else understanding the value of your judgment.</p>
+        <ProofLoop compact={true}/>
+      </div>
+
+      <div style={SX.card({marginBottom:20})}>
+        <h3 style={{...SX.h3,marginBottom:12}}>Which outcome do you need most right now?</h3>
+        <div style={{display:'grid',gap:8}}>
+          {PATHS.map(pt=>(
+            <button key={pt.k} type="button" onClick={()=>set(p=>({...p,path:pt.k}))}
+              style={{padding:'12px 16px',borderRadius:10,textAlign:'left',cursor:'pointer',border:`2px solid ${st.path===pt.k?N:BO}`,background:st.path===pt.k?TLt:CA,fontFamily:'inherit'}}>
+              <div style={{fontSize:13,fontWeight:600,color:N}}>{pt.label}</div>
+            </button>
+          ))}
+        </div>
+        {st.path&&<Alrt type="info" style={{marginTop:10}}><strong>Your orientation:</strong> {PATHS.find(pt=>pt.k===st.path)?.p}</Alrt>}
+      </div>
+
+      <div style={SX.card({marginBottom:20})}>
+        <h3 style={{...SX.h3,marginBottom:10}}>What are you most looking for?</h3>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+          {SEEKING.map(s=>(
+            <label key={s} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:TM,padding:'6px 10px',borderRadius:6,background:st.seeking.includes(s)?TLt:'transparent',border:`1px solid ${st.seeking.includes(s)?T:BO}`}}>
+              <input type="checkbox" checked={st.seeking.includes(s)} onChange={e=>set(p=>({...p,seeking:e.target.checked?[...p.seeking,s]:p.seeking.filter(x=>x!==s)}))}/>
+              {s}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:10}}>
+        <Btn onClick={()=>set(p=>({...p,view:'intake',startAt:p.startAt||new Date().toISOString(),activity:[...p.activity,{t:new Date().toISOString(),e:'Started Prairos'}]}))} variant="navy" size="lg" style={{flex:1,justifyContent:'center'}}>Start →</Btn>
+      </div>
+    </div>
+  );
+}
+
+function IntakeView({st,set}){
+  const ui=(k,v)=>set(p=>({...p,intake:{...p.intake,[k]:v}}));
+  return(
+    <div>
+      <h2 style={SX.h2}>Get Started</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:20}}>Write the way you actually think. The more specific you are, the stronger everything you build later will be.</p>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>About You</h3>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+          <Fld label="Your initials or an ID"><Inp value={st.pid} onChange={e=>set(p=>({...p,pid:e.target.value}))} placeholder="e.g. JW-001"/></Fld>
+          <Fld label="Name or nickname"><Inp value={st.name} onChange={e=>set(p=>({...p,name:e.target.value}))} placeholder="First name or alias"/></Fld>
+          <Fld label="Email (optional)"><Inp type="email" value={st.email} onChange={e=>set(p=>({...p,email:e.target.value}))} placeholder="for follow-up"/></Fld>
+        </div>
+        <div style={{display:'flex',gap:16,marginTop:4,flexWrap:'wrap'}}>
+          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:TM}}><input type="checkbox" checked={st.consentC} onChange={e=>set(p=>({...p,consentC:e.target.checked}))}/>It's okay to contact me for follow-up</label>
+          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:TM}}><input type="checkbox" checked={st.consentT} onChange={e=>set(p=>({...p,consentT:e.target.checked}))}/>It's okay to use an anonymous quote from me</label>
+        </div>
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>Your Situation</h3>
+        <Fld label="What's going on that brought you here?" hint="What is happening in your work or career right now?"><Ta value={st.intake.sit} onChange={e=>ui('sit',e.target.value)} rows={4} placeholder="Describe your current situation..."/></Fld>
+        <Fld label="What are you tempted to overstate or oversimplify?" hint="Where might you be making your situation bigger or simpler than it really is?"><Ta value={st.intake.over} onChange={e=>ui('over',e.target.value)} rows={2} placeholder="I'm tempted to say..."/></Fld>
+        <Fld label="What do you want by the end of this?"><Ta value={st.intake.out} onChange={e=>ui('out',e.target.value)} rows={2} placeholder="By the end, I want to..."/></Fld>
+        {(()=>{const t=(st.intake.sit||'').toLowerCase();const dismissed=/dismiss|invisible|overlook|ignored|not heard|not seen|undervalued|passed over|talked over/.test(t);const aiAnx=/replac|obsolete|ai (is |will |might )|automat|redundant/.test(t);if(dismissed)return <Alrt type="info" style={{marginTop:4}}>That sounds like invisible labor — judgment that has been operating without a name. Let's make it visible.</Alrt>;if(aiAnx)return <Alrt type="info" style={{marginTop:4}}>Your frustration may be pointing to judgment that has not been translated yet. AI can speed up output; it cannot own the context, risk, and accountability behind it. We will make that difference clear.</Alrt>;return null;})()}
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>AI & Opportunity</h3>
+        <Fld label="Are you using AI in this work?">
+          <div style={{display:'flex',gap:8}}>
+            {['Yes','No','Not sure'].map(o=>(<button key={o} type="button" onClick={()=>ui('ai',o)} style={{flex:1,padding:'8px',borderRadius:8,border:`1px solid ${st.intake.ai===o?N:BO}`,background:st.intake.ai===o?TLt:CA,fontSize:13,fontWeight:600,color:N,cursor:'pointer',fontFamily:'inherit'}}>{o}</button>))}
+          </div>
+        </Fld>
+        <Fld label="What opportunity would this help you move toward?"><Ta value={st.intake.opp} onChange={e=>ui('opp',e.target.value)} rows={2} placeholder="e.g. A senior role, a consulting contract..."/></Fld>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <Fld label="Why are you doing this now?"><Inp value={st.fur} onChange={e=>set(p=>({...p,fur:e.target.value}))} placeholder="e.g. Job search, promotion..."/></Fld>
+          <Fld label="Where will you use what you build first?"><Sel value={st.iuc} onChange={e=>set(p=>({...p,iuc:e.target.value}))} options={['Résumé','Interview','LinkedIn','Performance review','Manager conversation','Promotion case','Business positioning','Career pivot','Portfolio','Other']} placeholder="Select"/></Fld>
+        </div>
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>How You Talk to Yourself</h3>
+        <Fld label="Right now, when you think about your professional value, you tell yourself…"><Ta value={st.intake.cst} onChange={e=>ui('cst',e.target.value)} rows={2} placeholder="I tell myself..."/></Fld>
+        <Fld label="The belief you'd like to strengthen is…"><Ta value={st.intake.dst} onChange={e=>ui('dst',e.target.value)} rows={2} placeholder="I want to believe..."/></Fld>
+        <Fld label="The step you need more courage or structure to take is…"><Ta value={st.intake.courage} onChange={e=>ui('courage',e.target.value)} rows={2} placeholder="I need to..."/></Fld>
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>A Quick Check-In</h3>
+        <p style={{fontSize:12,color:TM,marginBottom:10}}>Stress is information, not failure. Check anything true today — it just helps the tool meet you where you are.</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:16}}>
+          {STRESS_IT.map(item=>(<label key={item} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:TM,padding:'6px 10px',borderRadius:6,background:st.stress.checks.includes(item)?TLt:'transparent',border:`1px solid ${st.stress.checks.includes(item)?T:BO}`}}><input type="checkbox" checked={st.stress.checks.includes(item)} onChange={e=>set(p=>({...p,stress:{checks:e.target.checked?[...p.stress.checks,item]:p.stress.checks.filter(x=>x!==item)}}))}/>{item}</label>))}
+        </div>
+        <Fld label="How much energy do you have for this today?">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
+            {[{k:'good',label:'Good day',desc:'Ready to go deep'},{k:'normal',label:'Normal day',desc:'One step at a time'},{k:'low',label:'Low day',desc:'Just one small thing'},{k:'pause',label:'Need to pause',desc:'Come back later'}].map(m=>(<button key={m.k} type="button" onClick={()=>set(p=>({...p,cap:m.k}))} style={{padding:'10px 12px',borderRadius:8,textAlign:'left',cursor:'pointer',border:`2px solid ${st.cap===m.k?T:BO}`,background:st.cap===m.k?TLt:CA,fontFamily:'inherit'}}><div style={{fontSize:12,fontWeight:700,color:N}}>{m.label}</div><div style={{fontSize:10,color:TL}}>{m.desc}</div></button>))}
+          </div>
+        </Fld>
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>A Couple of Honest Questions</h3>
+        <p style={{fontSize:12,color:TM,marginBottom:10}}>These help us understand what people value. No wrong answers.</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <Fld label="Would you pay for a tool like this?">
+            <div style={{display:'flex',gap:6}}>{['Yes','No','Maybe'].map(o=>(<button key={o} type="button" onClick={()=>set(p=>({...p,wtp:o}))} style={{flex:1,padding:'7px',borderRadius:7,border:`1px solid ${st.wtp===o?GR:BO}`,background:st.wtp===o?GLt:CA,fontSize:12,fontWeight:600,color:GR,cursor:'pointer',fontFamily:'inherit'}}>{o}</button>))}</div>
+          </Fld>
+          <Fld label="What feels fair to pay?"><Sel value={st.prange} onChange={e=>set(p=>({...p,prange:e.target.value}))} options={['$0','$29','$49','$97','$197','$297+']} placeholder="Select"/></Fld>
+        </div>
+      </div>
+
+      <NextBtn onClick={()=>set(p=>({...p,view:'scores',done:[...new Set([...p.done,'intake'])],activity:[...p.activity,{t:new Date().toISOString(),e:'Completed: Get Started'}]}))} children="Continue to Where You Are Now →"/>
+    </div>
+  );
+}
+
+function ScoresView({st,set,which='bScore'}){
+  const scores=st[which];const total=sumS(scores);const isBase=which==='bScore';
+  const lift=!isBase?total-sumS(st.bScore):null;
+  const upd=(k,v)=>set(p=>({...p,[which]:{...p[which],[k]:v}}));
+  return(
+    <div>
+      <h2 style={SX.h2}>{isBase?'Where You Are Now':'Where You Are Now (Round Two)'}</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:16}}>Rate each one honestly, 1 to 5. This is a starting point, not a test. {isBase?'You will rate these again at the end to see how far you have come.':''}</p>
+      {!isBase&&sumS(st.bScore)>0&&(<Alrt type="info" style={{marginBottom:16}}>You started at <strong>{sumS(st.bScore)}/40</strong>. Right now: <strong>{total}/40</strong>.{lift!==null&&lift>0&&<span style={{color:GR}}> <strong>+{lift}!</strong></span>}</Alrt>)}
+      <div style={SX.card()}>
+        {SCATS.map(c=>(
+          <div key={c.k} style={{marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><div style={{fontSize:13,fontWeight:600,color:N}}>{c.label}</div><div style={{fontSize:11,color:TL}}>{scores[c.k]||0}/5</div></div>
+            <div style={{fontSize:11,color:TM,marginBottom:5}}>{c.d}</div>
+            <div style={{display:'flex',gap:4}}>{[1,2,3,4,5].map(i=>(<button key={i} type="button" onClick={()=>upd(c.k,i)} style={{flex:1,padding:'7px 0',borderRadius:6,border:`1px solid ${scores[c.k]>=i?(isBase?N:GR):BO}`,background:scores[c.k]>=i?(isBase?N:GR):CA,color:scores[c.k]>=i?CA:TL,fontFamily:'inherit',fontSize:12,fontWeight:600,cursor:'pointer'}}>{i}</button>))}</div>
+          </div>
+        ))}
+      </div>
+      {isBase&&total>0&&total<=20&&(<Alrt type="info" style={{marginBottom:16}}>A lower score here is common and completely okay — it usually means your judgment is real but not yet <em>visible</em>. That is exactly what the next steps help you build. Nothing here is a verdict on your ability.</Alrt>)}
+      {isBase&&total>=32&&(<Alrt type="success" style={{marginBottom:16}}>You already see your value clearly. The work ahead is about making it just as clear to the people who need to act on it.</Alrt>)}
+      <div style={{...SX.card({background:`linear-gradient(135deg,#f0f5ff,${TLt})`}),display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div><div style={{fontSize:13,fontWeight:600,color:TM}}>Total</div><div style={{fontSize:11,color:TL}}>out of 40</div></div>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:52,fontWeight:800,color:N}}>{total}</div>
+        {lift!==null&&<div style={{textAlign:'right'}}><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:28,fontWeight:700,color:lift>0?GR:lift<0?R:TM}}>{lift>0?'+':''}{lift}</div><div style={{fontSize:11,color:TL}}>change</div></div>}
+      </div>
+      <NextBtn onClick={()=>set(p=>({...p,view:isBase?'intel':'milestones',done:[...new Set([...p.done,isBase?'scores':'final'])]}))}/>
+    </div>
+  );
+}
+
+function IntelView({st,set}){
+  const upd=(k,dim,v)=>set(p=>({...p,intel:{...p.intel,[k]:{...p.intel[k],[dim]:v}}}));
+  const router=getRouter(st.intel);
+  const hasData=Object.values(st.intel).some(v=>v.s>0);
+  return(
+    <div>
+      <h2 style={SX.h2}>Your Strengths</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:8}}>For each kind of thinking below, rate three things, 1 to 5: how <strong>strong</strong> you are at it, how <strong>visible</strong> it is to others, and how well <strong>positioned</strong> you are to use it.</p>
+      <Alrt type="info" style={{marginBottom:16}}>There are no wrong answers. The goal is simply to find a real strength that other people cannot yet see — that is where building one piece of proof pays off most.</Alrt>
+      <div style={{overflowX:'auto',marginBottom:16}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,minWidth:560}}>
+          <thead><tr style={{background:N,color:CA}}>
+            <th style={{padding:'10px 12px',textAlign:'left',fontWeight:600,width:'40%'}}>Kind of Thinking</th>
+            {['How strong?','How visible?','Well positioned?'].map(h=><th key={h} style={{padding:'10px 8px',textAlign:'center',fontWeight:600}}>{h}<br/><span style={{fontWeight:400,opacity:0.6,fontSize:9}}>1–5</span></th>)}
+          </tr></thead>
+          <tbody>
+            {INTEL.map((t,idx)=>{const d=st.intel[t.k];return(
+              <tr key={t.k} style={{background:idx%2?BG:CA,borderBottom:`1px solid ${BO}`}}>
+                <td style={{padding:'7px 12px',color:TX,fontWeight:500,fontSize:12}}>{t.label}</td>
+                {['s','p','pl'].map(dim=>(<td key={dim} style={{padding:'5px 6px'}}><div style={{display:'flex',gap:2,justifyContent:'center'}}>{[1,2,3,4,5].map(v=>(<button key={v} type="button" onClick={()=>upd(t.k,dim,v)} style={{width:20,height:20,borderRadius:4,border:`1px solid ${d[dim]>=v?N:BO}`,background:d[dim]>=v?N:CA,color:d[dim]>=v?CA:TL,fontSize:9,cursor:'pointer',padding:0,fontFamily:'inherit',fontWeight:600}}>{v}</button>))}</div></td>))}
+              </tr>
+            );})}
+          </tbody>
+        </table>
+      </div>
+      {hasData&&(
+        <div style={{...SX.card({background:`linear-gradient(135deg,#f8f4ff,${TLt})`})}}>
+          <h3 style={SX.h3}>What this is telling you</h3>
+          <Alrt type="success" style={{marginBottom:8}}>{getInsight(st.intel)}</Alrt>
+          {router.prompt&&<p style={{fontSize:13,color:N,fontStyle:'italic',margin:'4px 0 0'}}>"{router.prompt}"</p>}
+        </div>
+      )}
+      <NextBtn onClick={()=>set(p=>({...p,view:'precision',done:[...new Set([...p.done,'intel'])]}))} children="Continue to Name the Pattern →"/>
+    </div>
+  );
+}
+
+function PrecisionView({st,set}){
+  const up=(k,v)=>set(p=>({...p,pf:{...p.pf,[k]:v}}));
+  const helpStart=()=>set(p=>({...p,pf:{...p.pf,what:p.pf.what||p.intake.over||'',scope:p.pf.scope||p.intake.opp||''}}));
+  return(
+    <div>
+      <h2 style={SX.h2}>Name the Pattern</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:12}}>Before you can prove something, you have to name it precisely. This page helps you turn a frustration into a clear, fair pattern. There are no wrong answers, and nothing here is required to move on.</p>
+      <div style={{marginBottom:14}}><Btn onClick={helpStart} variant="secondary" size="sm">↺ Help me start (use my earlier answers)</Btn></div>
+      <div style={SX.card()}>
+        <Fld label="What exactly is happening?" hint="The specific thing you keep noticing."><Ta value={st.pf.what} onChange={e=>up('what',e.target.value)} rows={3} placeholder="I keep noticing that..."/></Fld>
+        <Fld label="What shows this is a real pattern, not just one bad day?"><Ta value={st.pf.rep} onChange={e=>up('rep',e.target.value)} rows={3} placeholder="This has happened when..."/></Fld>
+        <Fld label="Where does this NOT apply?" hint="Naming the limits keeps you fair and credible."><Ta value={st.pf.lim} onChange={e=>up('lim',e.target.value)} rows={2} placeholder="This doesn't apply when..."/></Fld>
+        <Fld label="Who or what situation does this pattern apply to?"><Inp value={st.pf.scope} onChange={e=>up('scope',e.target.value)} placeholder="e.g. complex client work, high-stakes communication..."/></Fld>
+        <Btn onClick={()=>up('stmt',genPrec(st.pf))} variant="teal">Build my statement from these answers</Btn>
+      </div>
+      {st.pf.stmt&&<DraftBox title="Your Pattern Statement" value={st.pf.stmt} onChange={e=>up('stmt',e.target.value)}/>}
+      <NextBtn onClick={()=>set(p=>({...p,view:'jmap',done:[...new Set([...p.done,'precision'])]}))} children="Continue to Show Your Judgment →"/>
+    </div>
+  );
+}
+
+function JMapView({st,set}){
+  const up=(k,v)=>set(p=>({...p,jm:{...p.jm,[k]:v}}));
+  const helpStart=()=>set(p=>({...p,jm:{...p.jm,ctx:p.jm.ctx||p.intake.sit||''}}));
+  return(
+    <div>
+      <h2 style={SX.h2}>Show Your Judgment</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:12}}>Think of one real moment where your thinking made a difference. Walk through it step by step. Every field is optional — answer what you can, skip what you can't, and come back anytime.</p>
+      <div style={{marginBottom:14}}><Btn onClick={helpStart} variant="secondary" size="sm">↺ Help me start (use my earlier answers)</Btn></div>
+      <div style={SX.card()}>
+        {[{k:'noticed',label:'What did you notice before others did?',ph:'I noticed...'},{k:'ctx',label:'What did you understand about the situation?',ph:'The situation was...'},{k:'risk',label:'What was at stake — a risk, a trade-off, an opportunity?',ph:'What was at stake...'},{k:'ev',label:'What backed up your concern or recommendation?',ph:'I knew this because...'},{k:'rec',label:'What did you recommend, decide, or protect?',ph:'I recommended / decided...'},{k:'resp',label:'What made your call a responsible one?',ph:'It was responsible because...'}].map(f=>(<Fld key={f.k} label={f.label}><Ta value={st.jm[f.k]} onChange={e=>up(f.k,e.target.value)} rows={2} placeholder={f.ph}/></Fld>))}
+        <Btn onClick={()=>up('def',genJDef(st.jm))} variant="teal">Build my judgment summary</Btn>
+      </div>
+      {st.jm.def&&<DraftBox title="Your Judgment, In One Place" value={st.jm.def} onChange={e=>up('def',e.target.value)} rows={4}/>}
+      <NextBtn onClick={()=>set(p=>({...p,view:'aibound',done:[...new Set([...p.done,'jmap'])]}))} children="Continue to Working With AI →"/>
+    </div>
+  );
+}
+
+function AIBoundView({st,set}){
+  const rows=st.aiRows.length?st.aiRows:DEF_AI_ROWS;
+  const cols=[
+    {k:'act',label:'A task you do',w:'17%'},
+    {k:'ai',label:'Where AI can help',w:'17%'},
+    {k:'newp',label:'Where you handle new situations',w:'17%'},
+    {k:'exp',label:'Where your experience matters',w:'17%'},
+    {k:'human',label:'What you stay responsible for',w:'18%'},
+    {k:'risk',label:'Risk if this is unclear',w:'11%'},
+  ];
+  const ensure=()=>{if(!st.aiRows.length)set(p=>({...p,aiRows:DEF_AI_ROWS,aiRC:DEF_AI_ROWS.length+1}));};
+  useEffect(()=>{ensure();},[]);
+  const addRow=()=>set(p=>({...p,aiRows:[...(p.aiRows.length?p.aiRows:DEF_AI_ROWS),{id:p.aiRC,act:'',ai:'',newp:'',exp:'',human:'',risk:''}],aiRC:p.aiRC+1}));
+  const delRow=id=>set(p=>({...p,aiRows:p.aiRows.filter(r=>r.id!==id)}));
+  const updRow=(id,k,v)=>set(p=>({...p,aiRows:(p.aiRows.length?p.aiRows:DEF_AI_ROWS).map(r=>r.id===id?{...r,[k]:v}:r)}));
+  return(
+    <div>
+      <h2 style={SX.h2}>Working With AI</h2>
+      <Alrt type="info" style={{marginBottom:14}}>
+        <strong>What to do here:</strong> This section helps clarify where technology can assist and where human judgment, ethics, context, and accountability remain essential. We have filled in three common tasks as examples. For each one, the table shows where AI can help and where <em>you</em> are still essential. Edit any box to fit your real work, or add your own tasks.
+      </Alrt>
+      <div style={{overflowX:'auto',marginBottom:12}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,minWidth:760}}>
+          <thead><tr style={{background:N,color:CA}}>{cols.map(c=><th key={c.k} style={{padding:'9px 8px',textAlign:'left',fontWeight:600,width:c.w}}>{c.label}</th>)}<th style={{width:'4%'}}></th></tr></thead>
+          <tbody>
+            {rows.map((row,idx)=>(<tr key={row.id} style={{background:idx%2?BG:CA}}>
+              {cols.map(c=><td key={c.k} style={{padding:'3px 4px'}}><textarea value={row[c.k]} onChange={e=>updRow(row.id,c.k,e.target.value)} style={{...SX.ta,fontSize:11,minHeight:44,padding:'4px 6px'}} rows={2}/></td>)}
+              <td style={{padding:'3px 4px',textAlign:'center'}}><Btn onClick={()=>delRow(row.id)} variant="danger" size="sm">✕</Btn></td>
+            </tr>))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{display:'flex',gap:8,marginBottom:16}}>
+        <Btn onClick={addRow} variant="secondary">+ Add a task of your own</Btn>
+        <Btn onClick={()=>set(p=>({...p,aiSum:genAISum(p.aiRows.length?p.aiRows:DEF_AI_ROWS)}))} variant="teal">Build my summary</Btn>
+      </div>
+      {st.aiSum&&<DraftBox title="Your Working-With-AI Summary" value={st.aiSum} onChange={e=>set(p=>({...p,aiSum:e.target.value}))} rows={4}/>}
+      <NextBtn onClick={()=>set(p=>({...p,view:'story',done:[...new Set([...p.done,'aibound'])]}))} children="Continue to Your Judgment Story →"/>
+    </div>
+  );
+}
+
+function StoryView({st,set}){
+  const up=(k,v)=>set(p=>({...p,sf:{...p.sf,[k]:v}}));
+  const helpStart=()=>set(p=>({...p,sf:{...p.sf,sit:p.sf.sit||p.jm.ctx||'',act:p.sf.act||p.jm.rec||'',res:p.sf.res||''}}));
+  return(
+    <div>
+      <h2 style={SX.h2}>Your Judgment Story</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:12}}>A short story you can actually use — in an interview, a review, or a conversation. Four parts. We will stitch them together for you.</p>
+      <div style={{marginBottom:14}}><Btn onClick={helpStart} variant="secondary" size="sm">↺ Help me start (pull from my Judgment Map)</Btn></div>
+      <div style={SX.card()}>
+        {[{k:'sit',label:'The situation',ph:'Where were you, and what was happening?'},{k:'chal',label:'The challenge',ph:'What made it hard — pressure, uncertainty, disagreement?'},{k:'act',label:'What you did',ph:'What did you weigh, and what did you decide?'},{k:'res',label:'The result or lesson',ph:'What happened, or what did you learn?'}].map(f=>(<Fld key={f.k} label={f.label}><Ta value={st.sf[f.k]} onChange={e=>up(f.k,e.target.value)} rows={3} placeholder={f.ph}/></Fld>))}
+        <Btn onClick={()=>up('draft',genStory(st.sf))} variant="teal">Build my story</Btn>
+      </div>
+      {st.sf.draft&&<DraftBox title="Your Judgment Story" value={st.sf.draft} onChange={e=>up('draft',e.target.value)} rows={8}/>}
+      <NextBtn onClick={()=>set(p=>({...p,view:'place',done:[...new Set([...p.done,'story'])],activity:[...p.activity,{t:new Date().toISOString(),e:'Wrote Judgment Story'}]}))} children="Continue to Your Next Move →"/>
+    </div>
+  );
+}
+
+function PlaceView({st,set}){
+  const up=(k,v)=>set(p=>({...p,pla:{...p.pla,[k]:v}}));
+  const suggestions=st.pla.dests.map(d=>PLACE_SUGGEST[d]).filter(Boolean);
+  return(
+    <div>
+      <h2 style={SX.h2}>Your Next Move</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:20}}>You have built real proof. Now: where does it go, and what is the very next step?</p>
+      <div style={SX.card()}>
+        <Fld label="Where could you use this proof first? (check all that fit)">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>{PLACE_D.map(d=>(<label key={d} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:TM,padding:'6px 10px',borderRadius:6,background:st.pla.dests.includes(d)?TLt:'transparent',border:`1px solid ${st.pla.dests.includes(d)?T:BO}`}}><input type="checkbox" checked={st.pla.dests.includes(d)} onChange={e=>up('dests',e.target.checked?[...st.pla.dests,d]:st.pla.dests.filter(x=>x!==d))}/>{d}</label>))}</div>
+        </Fld>
+        {suggestions.length>0&&(<Alrt type="success" style={{marginBottom:14}}><strong>Based on what you checked, here are concrete ideas:</strong><ul style={{margin:'8px 0 0',paddingLeft:18}}>{suggestions.map((s,i)=><li key={i} style={{marginBottom:5}}>{s}</li>)}</ul></Alrt>)}
+        <Fld label="Who needs to see it, and how should it sound for them?"><Sel value={st.pla.aud} onChange={e=>up('aud',e.target.value)} options={AUDIENCE_T} placeholder="Select"/></Fld>
+        <Fld label="Your next step in the next 7 days" hint="Small and specific beats big and vague."><Ta value={st.pla.n7} onChange={e=>up('n7',e.target.value)} rows={2} placeholder="In the next 7 days, I will..."/></Fld>
+        <Fld label="Your next step in the next 30 days"><Ta value={st.pla.n30} onChange={e=>up('n30',e.target.value)} rows={2} placeholder="In the next 30 days, I will..."/></Fld>
+        <Fld label="How will you know it's working?" hint="A reply, a request to talk, an invitation, a referral — any sign your proof landed."><Inp value={st.pla.paid} onChange={e=>up('paid',e.target.value)} placeholder="e.g. someone asks to talk further, a callback, an intro..."/></Fld>
+      </div>
+
+      <div style={SX.card()}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+          <h3 style={{...SX.h3,marginBottom:0}}>Check for Understanding</h3>
+        </div>
+        <p style={{fontSize:12,color:TM,marginBottom:14}}>Proof is not fully placed until someone else understands it. This closes the loop: you share it, you check whether it landed, and you decide what to do next.</p>
+        <Fld label="Who needs to understand this proof?"><Sel value={st.pla.ucWho} onChange={e=>up('ucWho',e.target.value)} options={UC_WHO} placeholder="Select"/></Fld>
+        <Fld label="What do you want them to understand?" hint="e.g. that your value is not just task completion — it is the judgment behind the decision."><Ta value={st.pla.ucWhat} onChange={e=>up('ucWhat',e.target.value)} rows={2} placeholder="I want them to understand that..."/></Fld>
+        <Fld label="How will you check whether they understood it?"><Sel value={st.pla.ucHow} onChange={e=>up('ucHow',e.target.value)} options={UC_HOW} placeholder="Select"/></Fld>
+        <Fld label="What happened after you shared it?"><Sel value={st.pla.ucResult} onChange={e=>up('ucResult',e.target.value)} options={UC_RESULT} placeholder="Select (you can come back to this later)"/></Fld>
+        {st.pla.ucResult&&UC_NEXT[st.pla.ucResult]&&(<Alrt type="success"><strong>Your next step:</strong> {UC_NEXT[st.pla.ucResult]}</Alrt>)}
+      </div>
+
+      <NextBtn onClick={()=>set(p=>({...p,view:'pace',done:[...new Set([...p.done,'place'])]}))} children="Continue to Track Your Progress →"/>
+    </div>
+  );
+}
+
+function PaceView({st,set}){
+  /* Auto-suggested actions drawn from completed work (item 12) */
+  const suggestions=[];
+  if(st.pf.stmt)suggestions.push({type:'clarity',desc:'Named the pattern I keep seeing'});
+  if(st.jm.def)suggestions.push({type:'proof',desc:'Mapped out my judgment in a real example'});
+  if(st.sf.draft)suggestions.push({type:'proof',desc:'Wrote my Judgment Story'});
+  if(st.pla.n7)suggestions.push({type:'placement',desc:st.pla.n7.slice(0,60)});
+  if(st.pla.ucResult&&st.pla.ucResult!=='I have not shared it yet')suggestions.push({type:'understanding',desc:'Checked whether '+(st.pla.ucWho||'someone')+' understood my proof'});
+  const logged=new Set(st.pace.map(a=>a.desc));
+  const fresh=suggestions.filter(s=>!logged.has(s.desc));
+  const add=(type,desc)=>{if(!desc.trim())return;set(p=>({...p,pace:[...p.pace,{id:Date.now()+Math.random(),type,desc,date:new Date().toISOString().slice(0,10)}],paceF:{...p.paceF,desc:''}}));};
+  const wk=weekPace(st.pace);
+  const tName=k=>PACE_T.find(t=>t.k===k)?.label||k;
+  const tColor=k=>({clarity:T,proof:N,shared:GR,understanding:O,placement:G,signal:O}[k]||N);
+  const tBg=k=>({clarity:TLt,proof:'#e8eeff',shared:GLt,understanding:OLt,placement:GLd,signal:OLt}[k]||TLt);
+  return(
+    <div>
+      <h2 style={SX.h2}>Track Your Progress</h2>
+      <Alrt type="success" style={{marginBottom:20}}>This is not a streak. Nothing is ever lost. We only count the real, proof-producing steps you take — at whatever pace works for your life.</Alrt>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20}}>
+        <MCard label="This Week" value={wk} sub="steps taken" clr={T}/>
+        <MCard label="All Time" value={st.pace.length} sub="steps logged" clr={N}/>
+        <MCard label="Toward an Opportunity" value={st.pace.filter(x=>x.type==='placement'||x.type==='signal').length} sub="steps" clr={O}/>
+      </div>
+      {wk>0&&<Alrt type="success" style={{marginBottom:16}}>You took <strong>{wk}</strong> real step{wk!==1?'s':''} this week. Nothing is lost. Just continue from the next honest one.</Alrt>}
+      {fresh.length>0&&(
+        <div style={SX.card()}>
+          <h3 style={SX.h3}>Steps you've already taken — tap to log them</h3>
+          <p style={{fontSize:12,color:TM,marginBottom:10}}>You did these in the tool. Add them with one tap.</p>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>{fresh.map((s,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:BG,borderRadius:8}}><Badge text={tName(s.type)} clr={tColor(s.type)} bg={tBg(s.type)}/><div style={{flex:1,fontSize:12,color:TX}}>{s.desc}</div><Btn onClick={()=>add(s.type,s.desc)} variant="teal" size="sm">+ Log it</Btn></div>))}</div>
+        </div>
+      )}
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>Or log your own step</h3>
+        <div style={{display:'grid',gridTemplateColumns:'1.3fr 2fr',gap:12,marginBottom:12}}>
+          <Fld label="What kind of step?"><Sel value={st.paceF.type} onChange={e=>set(p=>({...p,paceF:{...p.paceF,type:e.target.value}}))} options={PACE_T}/></Fld>
+          <Fld label="What did you do?"><Inp value={st.paceF.desc} onChange={e=>set(p=>({...p,paceF:{...p.paceF,desc:e.target.value}}))} placeholder="e.g. Sent my story to a mentor"/></Fld>
+        </div>
+        <Btn onClick={()=>add(st.paceF.type,st.paceF.desc)} variant="teal">+ Add this step</Btn>
+      </div>
+      {st.pace.length>0&&(
+        <div style={SX.card()}>
+          <h3 style={SX.h3}>Everything you've done</h3>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>{[...st.pace].reverse().map(a=>(<div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:BG,borderRadius:8}}><Badge text={tName(a.type)} clr={tColor(a.type)} bg={tBg(a.type)}/><div style={{flex:1,fontSize:12,color:TX}}>{a.desc}</div><div style={{fontSize:11,color:TL}}>{a.date}</div></div>))}</div>
+        </div>
+      )}
+      <NextBtn onClick={()=>set(p=>({...p,view:'milestones',done:[...new Set([...p.done,'pace'])]}))} children="Continue to Own Your Work →"/>
+    </div>
+  );
+}
+
+function MilestoneView({st,set}){
+  const ownedCt=Object.values(st.miles).filter(m=>m.owned==='Yes').length;
+  const STEPS=[{k:'draft',label:'Drafted'},{k:'reviewed',label:'Reviewed it'},{k:'owned',label:'I own this'}];
+  const isReady=k=>{const m=MILES_IT.find(x=>x.k===k);return st.done.includes(m.view);};
+  return(
+    <div>
+      <h2 style={SX.h2}>Own Your Work</h2>
+      <Alrt type="info" style={{marginBottom:20}}>You built five things. This page is where you take ownership of each one. For every piece, move it from <em>Drafted</em> → <em>Reviewed it</em> → <em>I own this</em>. Saying "I own this" means: it's true, it's specific, and you would stand behind it in a real conversation.</Alrt>
+      {MILES_IT.map(m=>{const ml=st.miles[m.k];const ready=isReady(m.k);return(
+        <div key={m.k} style={{...SX.card({borderLeft:`4px solid ${ml.owned==='Yes'?GR:ml.status==='reviewed'?T:BO}`})}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10,flexWrap:'wrap',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <h3 style={{...SX.h3,marginBottom:0}}>{m.label}</h3>
+              {!ready&&<Badge text="Not started yet" clr={TL} bg={BG}/>}
+              {ml.owned==='Yes'&&<Badge text="✓ You own this" clr={GR} bg={GLt}/>}
+            </div>
+            {!ready&&<Btn onClick={()=>set(p=>({...p,view:m.view}))} variant="secondary" size="sm">Go build it →</Btn>}
+          </div>
+          {ready&&(<>
+            <div style={{display:'flex',gap:6,marginBottom:10}}>{STEPS.map((s,i)=>(<button key={s.k} type="button" onClick={()=>set(p=>({...p,miles:{...p.miles,[m.k]:{...p.miles[m.k],status:s.k,owned:s.k==='owned'?'Yes':''}}}))} style={{flex:1,padding:'9px',borderRadius:8,border:`2px solid ${ml.status===s.k?(s.k==='owned'?GR:T):BO}`,background:ml.status===s.k?(s.k==='owned'?GLt:TLt):CA,fontSize:12,fontWeight:600,color:ml.status===s.k?(s.k==='owned'?GR:T):TM,cursor:'pointer',fontFamily:'inherit'}}>{i+1}. {s.label}</button>))}</div>
+            <p style={{fontSize:11,color:TL,margin:0}}>Own this when it: reflects a real situation, avoids overstating, shows evidence, makes your judgment clear, and could be used in a real next step.</p>
+          </>)}
+        </div>
+      );})}
+      <div style={{...SX.card({background:`linear-gradient(135deg,${GLt},${TLt})`}),display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 28px'}}>
+        <div><div style={{fontSize:13,fontWeight:600,color:TX}}>Pieces You Own</div><div style={{fontSize:11,color:TL}}>true, specific, and ready to use</div></div>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:52,fontWeight:800,color:GR}}>{ownedCt}<span style={{fontSize:22,opacity:0.4}}>/{MILES_IT.length}</span></div>
+      </div>
+      <NextBtn onClick={()=>set(p=>({...p,view:'final'}))} children="Continue to Finish & Reflect →"/>
+    </div>
+  );
+}
+
+function FinalView({st,set,onSubmit}){
+  const up=(k,v)=>set(p=>({...p,testy:{...p.testy,[k]:v}}));
+  const fb=(k,v)=>set(p=>({...p,feedback:{...p.feedback,[k]:v}}));
+  const bl=sumS(st.bScore),fl=sumS(st.fScore),lift=fl-bl;
+  return(
+    <div>
+      <h2 style={SX.h2}>Finish & Reflect</h2>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>Rate yourself again</h3>
+        <p style={{fontSize:12,color:TM,marginBottom:12}}>Same eight areas as the start. Notice how it feels now that you have built real proof.</p>
+        {SCATS.map(c=>(<div key={c.k} style={{marginBottom:10}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><div style={{fontSize:13,fontWeight:600,color:N}}>{c.label}</div><div style={{fontSize:11,color:TL}}>{st.fScore[c.k]||0}/5</div></div><div style={{display:'flex',gap:4}}>{[1,2,3,4,5].map(i=><button key={i} type="button" onClick={()=>set(p=>({...p,fScore:{...p.fScore,[c.k]:i}}))} style={{flex:1,padding:'7px 0',borderRadius:6,border:`1px solid ${st.fScore[c.k]>=i?GR:BO}`,background:st.fScore[c.k]>=i?GR:CA,color:st.fScore[c.k]>=i?CA:TL,fontFamily:'inherit',fontSize:12,fontWeight:600,cursor:'pointer'}}>{i}</button>)}</div></div>))}
+      </div>
+
+      {bl>0&&fl>0&&(
+        <>
+        <div style={{...SX.card({background:`linear-gradient(135deg,${GLt},${TLt})`}),display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:16,textAlign:'center',padding:'24px'}}>
+          <div><div style={{fontSize:12,color:TM,fontWeight:600}}>At the start</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:48,fontWeight:800,color:N,lineHeight:1}}>{bl}</div><div style={{fontSize:11,color:TL}}>/ 40</div></div>
+          <div><div style={{fontSize:12,color:TM,fontWeight:600}}>Now</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:48,fontWeight:800,color:GR,lineHeight:1}}>{fl}</div><div style={{fontSize:11,color:TL}}>/ 40</div></div>
+          <div><div style={{fontSize:12,color:TM,fontWeight:600}}>Change</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:48,fontWeight:800,color:lift>0?GR:lift<0?R:TM,lineHeight:1}}>{lift>0?'+':''}{lift}</div><div style={{fontSize:11,color:TL}}>points</div></div>
+        </div>
+        <div style={SX.card()}>
+          <h3 style={SX.h3}>What this means for you</h3>
+          <Alrt type="success">{getInsight(st.intel)}</Alrt>
+        </div>
+        </>
+      )}
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>A few reflections</h3>
+        <Fld label="Before Prairos, I struggled with…"><Ta value={st.testy.bef} onChange={e=>up('bef',e.target.value)} rows={2}/></Fld>
+        <Fld label="Now, I can…"><Ta value={st.testy.aft} onChange={e=>up('aft',e.target.value)} rows={2}/></Fld>
+        <Fld label="The most useful part was…"><Inp value={st.testy.useful} onChange={e=>up('useful',e.target.value)}/></Fld>
+        <Alrt type="success" style={{marginBottom:14}}>However today felt, you did the real work: you turned something you carried into something you can show. That is proof, and it is yours.</Alrt>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginTop:4}}>
+          <Fld label="Would you recommend it? (1–5)"><div style={{display:'flex',gap:4}}>{[1,2,3,4,5].map(i=><button key={i} type="button" onClick={()=>up('rec',i)} style={{flex:1,padding:'7px 0',borderRadius:6,border:`1px solid ${st.testy.rec>=i?G:BO}`,background:st.testy.rec>=i?G:CA,color:st.testy.rec>=i?CA:TL,fontFamily:'inherit',fontSize:12,fontWeight:600,cursor:'pointer'}}>{i}</button>)}</div></Fld>
+          <Fld label="Would you pay $27?"><div style={{display:'flex',gap:6}}>{['Yes','No','Maybe'].map(o=><button key={o} type="button" onClick={()=>up('pay',o)} style={{flex:1,padding:'7px',borderRadius:7,border:`1px solid ${st.testy.pay===o?GR:BO}`,background:st.testy.pay===o?GLt:CA,fontSize:12,fontWeight:600,color:GR,cursor:'pointer',fontFamily:'inherit'}}>{o}</button>)}</div></Fld>
+          <Fld label="Would you refer someone?"><div style={{display:'flex',gap:6}}>{['Yes','No','Maybe'].map(o=><button key={o} type="button" onClick={()=>up('refer',o)} style={{flex:1,padding:'7px',borderRadius:7,border:`1px solid ${st.testy.refer===o?T:BO}`,background:st.testy.refer===o?TLt:CA,fontSize:12,fontWeight:600,color:T,cursor:'pointer',fontFamily:'inherit'}}>{o}</button>)}</div></Fld>
+        </div>
+        {(st.testy.refer==='Yes'||st.testy.refer==='Maybe')&&(
+          <div style={{marginTop:12,padding:'14px 16px',background:TLt,borderRadius:8,border:`1px solid ${T}30`}}>
+            <div style={{fontSize:12,fontWeight:700,color:N,marginBottom:8}}>{st.testy.refer==='Yes'?'Wonderful — who comes to mind?':'No pressure — if someone comes to mind, jot it here.'}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <Fld label="Their name (optional)"><Inp value={st.testy.refName} onChange={e=>up('refName',e.target.value)} placeholder="First name is fine"/></Fld>
+              <Fld label="How to reach them, or a note (optional)"><Inp value={st.testy.refContact} onChange={e=>up('refContact',e.target.value)} placeholder="Email, or 'I'll introduce you'"/></Fld>
+            </div>
+            <p style={{fontSize:11,color:TL,margin:0}}>Only share contact details you have permission to share.</p>
+          </div>
+        )}
+        <Fld label="How may we use your words?"><Sel value={st.testy.perm} onChange={e=>up('perm',e.target.value)} options={['Private feedback only','Anonymous quote','First name only','Full permission']}/></Fld>
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>Want a human to look at your work?</h3>
+        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,color:TX,marginBottom:10}}><input type="checkbox" checked={st.feedback.want} onChange={e=>fb('want',e.target.checked)}/>Yes, I'd like feedback on what I built</label>
+        {st.feedback.want&&(<>
+          <Fld label="What would you like a second opinion on?"><Ta value={st.feedback.note} onChange={e=>fb('note',e.target.value)} rows={2} placeholder="e.g. Is my Judgment Story specific enough?"/></Fld>
+          <p style={{fontSize:12,color:TM}}>When you finish, use <strong>Export My Report</strong> below and email it over. We'll take a look.</p>
+        </>)}
+      </div>
+
+      <NextBtn onClick={()=>{const next={...st,done:[...new Set([...st.done,'final'])],activity:[...st.activity,{t:new Date().toISOString(),e:'Finished the full workflow'}]};set(next);if(onSubmit)onSubmit(next);}} children="Finish & Send My Results →"/>
+    </div>
+  );
+}
+
+function UserDashView({st,set,onReport,onEmail}){
+  const lv=getLevel(st.done);
+  const ownedCt=Object.values(st.miles).filter(m=>m.owned==='Yes').length;
+  const wk=weekPace(st.pace);
+  const lift=sumS(st.fScore)-sumS(st.bScore);
+  const allDone=st.done.includes('final');
+  return(
+    <div>
+      <h2 style={SX.h2}>My Dashboard</h2>
+      <p style={{fontSize:13,color:TM,marginBottom:20}}>You are not being ranked. This shows what is becoming visible in your work.</p>
+
+      <div style={{...SX.card({background:`linear-gradient(135deg,${N},#1f4f75)`,color:CA,padding:'24px 28px',marginBottom:16})}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div><div style={{fontSize:10,opacity:0.65,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:4}}>Level {lv.n}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:26,fontWeight:800,marginBottom:4}}>{lv.label}</div><div style={{fontSize:13,opacity:0.8}}>{lv.d}</div></div>
+          <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:64,fontWeight:800,opacity:0.15}}>{lv.n}</div>
+        </div>
+        <PBar v={lv.n} max={5} clr={T} style={{marginTop:14}}/>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>{['Noticed','Named','Captured','Packaged','Ready'].map((l,i)=>(<div key={l} style={{fontSize:9,opacity:lv.n>i?0.9:0.35}}>{l}</div>))}</div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
+        <MCard label="Score Change" value={lift>0?`+${lift}`:lift||'—'} sub="points" clr={lift>0?GR:lift<0?R:TM}/>
+        <MCard label="Pieces You Own" value={ownedCt} sub={`/ ${MILES_IT.length}`} clr={T}/>
+        <MCard label="Steps This Week" value={wk} sub="real progress" clr={O}/>
+        <MCard label="Energy Today" value={({good:'Good',normal:'Normal',low:'Low',pause:'Paused'})[st.cap]||'Normal'} clr={G}/>
+      </div>
+
+      {/* What to do next — fixes item 20 */}
+      <div style={SX.card({border:`2px solid ${O}`})}>
+        <h3 style={{...SX.h3,color:O}}>What to do next</h3>
+        {allDone?(
+          <ol style={{margin:'0',paddingLeft:18,fontSize:13,color:TX,lineHeight:1.9}}>
+            <li><strong>Export your report</strong> (button below) so you have your work in one place.</li>
+            <li><strong>Take your 7-day step:</strong> {st.pla.n7||'set one on the "Your Next Move" page.'}</li>
+            <li><strong>Use your Judgment Story</strong> where you said you would: {st.pla.dests.join(', ')||'pick a place on "Your Next Move."'}</li>
+            <li><strong>Come back and log it</strong> on "Track Your Progress" once you do.</li>
+            {st.feedback.want&&<li><strong>Send your report to us</strong> for the feedback you asked for — use the email button below.</li>}
+          </ol>
+        ):(
+          <div style={{fontSize:13,color:TX}}>
+            <p style={{marginTop:0}}>You're partway there. Your next step in the tool:</p>
+            <Btn onClick={()=>set(p=>({...p,view:!p.done.includes('intake')?'intake':!p.done.includes('jmap')?'jmap':!p.done.includes('story')?'story':!p.done.includes('place')?'place':'final'}))} variant="orange">Continue where I left off →</Btn>
+          </div>
+        )}
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>Keep your work</h3>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <Btn onClick={onReport} variant="navy">⬇ Export My Report</Btn>
+          {st.feedback.want&&<Btn onClick={onEmail} variant="teal">✉ Email it for feedback</Btn>}
+        </div>
+        <p style={{fontSize:11,color:TL,marginTop:8,marginBottom:0}}>Your report is a single file with everything you wrote and built. It opens in any browser and prints cleanly.</p>
+      </div>
+
+      <div style={SX.card()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:8}}>
+          <h3 style={{...SX.h3,marginBottom:0}}>The Prairos Proof Loop</h3>
+          {(()=>{const s=getLoopStatus(st);return <Badge text={s.label} clr={s.clr} bg={s.bg}/>;})()}
+        </div>
+        <ProofLoop activeIdx={(()=>{
+          let i=-1;
+          if(st.done.includes('intake'))i=1;
+          if(st.jm.def)i=2;
+          if(st.sf.draft)i=3;
+          if(st.pla.ucResult&&st.pla.ucResult!=='I have not shared it yet')i=5;
+          if(st.pla.n7||st.pla.n30)i=Math.max(i,6);
+          return i;
+        })()}/>
+        {st.pla.ucResult&&UC_NEXT[st.pla.ucResult]&&(<Alrt type="info" style={{marginTop:14}}><strong>Where you are in the loop:</strong> {UC_NEXT[st.pla.ucResult]}</Alrt>)}
+        {!st.pla.ucResult&&st.sf.draft&&(<Alrt type="warn" style={{marginTop:14}}>You have built proof — now share it and check for understanding on the "Your Next Move" page. Proof is not fully placed until someone else understands it.</Alrt>)}
+      </div>
+
+      <div style={SX.card()}>
+        <h3 style={SX.h3}>What you've built</h3>
+        {MILES_IT.map(m=>{const ml=st.miles[m.k];return(<div key={m.k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',background:BG,borderRadius:8,marginBottom:6}}><span style={{fontSize:12,color:TX}}>{m.label}</span>{ml.owned==='Yes'?<Badge text="✓ You own this" clr={GR} bg={GLt}/>:st.done.includes(m.view)?<Badge text="Built" clr={T} bg={TLt}/>:<Badge text="Not yet" clr={TL} bg={BG}/>}</div>);})}
+      </div>
+
+      {st.activity.length>0&&(
+        <div style={SX.card()}>
+          <h3 style={SX.h3}>Your progress so far</h3>
+          <div style={{display:'flex',flexDirection:'column',gap:0}}>
+            {[...st.activity].reverse().map((a,i)=>(<div key={i} style={{display:'flex',gap:12,alignItems:'center',padding:'7px 0',borderBottom:i<st.activity.length-1?`1px solid ${BG}`:'none'}}><div style={{width:8,height:8,borderRadius:'50%',background:T,flexShrink:0}}/><div style={{flex:1,fontSize:12,color:TX}}>{a.e}</div><div style={{fontSize:11,color:TL}}>{new Date(a.t).toLocaleDateString()}</div></div>))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoView(){
+  const [sec,setSec]=useState('faq');
+  const faq=[
+    {q:'What kind of tool is Prairos?',a:'Prairos is a tech-enabled, human-centered AI practice tool that helps people make judgment, context, accountability, and proof visible in AI-assisted work. In plainer terms: Prairos helps you show the judgment behind the work.'},
+    {q:'Is Prairos an AI tool?',a:'Prairos uses technology to support reflection, structure, scoring, and proof-building, but its purpose is human-centered: making your judgment visible.'},
+    {q:'What problem does this solve?',a:'AI can make work output faster, but it can also hide the human thinking behind quality, risk, context, and accountability. Prairos helps you document that thinking.'},
+    {q:'Should I fake confidence?',a:'No. Build proof until your confidence has evidence behind it.'},
+    {q:'Does this focus on my weaknesses?',a:'No. It builds from your strengths first, and only develops a weakness if it is genuinely blocking your next move.'},
+    {q:'Do I need an AI subscription or internet?',a:'No subscription is needed and the tool works offline as you fill it in — the drafts are built from your own words on your device. When you choose "Finish & Send My Results" at the end, your responses are sent to the Prairos team so we can learn from this round. Nothing else is sent automatically.'},
+    {q:'Will the tool compare me to other people?',a:'Never. There are no rankings and no leaderboards. It is here to help you feel and become more capable.'},
+    {q:'Where does AI fit in?',a:'Through the Working-With-AI map — it shows where AI helps and where your judgment and accountability remain essential.'},
+    {q:'Does this guarantee a job or a raise?',a:'No. It helps you build clarity, proof, and a concrete next step. It makes no promises about employment, income, or outcomes.'},
+    {q:'What replaces "fake it till you make it"?',a:'Do not fake it. Build proof until the room can see it.'},
+    {q:'What if I am having a hard day?',a:'Stress is information, not failure. Use the energy check-in and take one small step, or pause and come back. Nothing is lost.'},
+  ];
+  return(
+    <div>
+      <h2 style={SX.h2}>Info & FAQ</h2>
+      <div style={{display:'flex',gap:8,marginBottom:20}}>{['faq','flow','rules'].map(s=><Btn key={s} onClick={()=>setSec(s)} variant={sec===s?'navy':'secondary'} size="sm">{s==='faq'?'FAQ':s==='flow'?'How It Works':'Our Principles'}</Btn>)}</div>
+      {sec==='faq'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>{faq.map((f,i)=>(<div key={i} style={SX.card()}><div style={{fontSize:13,fontWeight:700,color:N,marginBottom:4}}>{f.q}</div><div style={{fontSize:13,color:TM,lineHeight:1.6}}>{f.a}</div></div>))}</div>}
+      {sec==='flow'&&(<div style={SX.card()}><h3 style={SX.h3}>Your path through Prairos</h3><div style={{display:'flex',flexWrap:'wrap',gap:4,alignItems:'center'}}>{['Get started','Rate where you are','Find your strengths','Name the pattern','Show your judgment','Map working with AI','Write your story','Plan your next move','Track progress','Own your work','Finish & reflect'].map((step,i,arr)=>(<div key={step} style={{display:'flex',alignItems:'center'}}><div style={{background:i<6?N:T,color:CA,borderRadius:8,padding:'8px 12px',fontSize:11,fontWeight:600,minWidth:76,textAlign:'center'}}><div style={{fontSize:9,opacity:0.6}}>{i+1}</div>{step}</div>{i<arr.length-1&&<span style={{color:TM,padding:'0 2px'}}>→</span>}</div>))}</div></div>)}
+      {sec==='rules'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>{[{n:1,rule:'Build from strength.'},{n:2,rule:'Prove what is hidden.'},{n:3,rule:'Develop only what blocks your next move.'},{n:4,rule:'Reward proof, never pressure.'},{n:5,rule:'Count real steps, not perfection.'},{n:6,rule:'Ownership turns completion into confidence.'},{n:7,rule:'Stress is information, not failure.'},{n:8,rule:'AI can help, but you stay accountable for context, risk, ethics, and the final call.'},{n:9,rule:'Do not fake confidence. Build proof.'},{n:10,rule:'Try before you scale.'},{n:11,rule:'Proof is not fully placed until it has been understood.'},{n:12,rule:'The goal is not to be right in silence. The goal is to make judgment understandable enough to move.'}].map(r=>(<div key={r.n} style={{...SX.card({borderLeft:`4px solid ${r.n%2===0?T:O}`})}}><div style={{fontSize:10,fontWeight:700,color:TL,textTransform:'uppercase',marginBottom:3}}>Principle {r.n}</div><div style={{fontSize:13,fontWeight:600,color:N}}>{r.rule}</div></div>))}</div>}
+    </div>
+  );
+}
+
+/* ── REPORT BUILDER (item 6: captures everything the user wrote + built) ── */
+function buildReport(st){
+  const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const bl=sumS(st.bScore),fl=sumS(st.fScore);
+  const sec=(title,body)=>`<h2>${title}</h2>${body}`;
+  const para=t=>`<div class="box">${esc(t)||'<span class="empty">(not completed)</span>'}</div>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Prairos Report — ${esc(st.name||st.pid||'Participant')}</title>
+<style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:740px;margin:40px auto;padding:0 28px;color:#1a2834;line-height:1.7;background:#fff}
+h1{font-size:32px;color:#16395c;font-weight:800}h2{font-size:18px;color:#16395c;margin:26px 0 8px;font-weight:800}
+.sub{color:#2b9da0;font-weight:600;margin-bottom:4px}.meta{color:#718096;font-size:13px;margin-bottom:20px}
+.box{background:#f5f1e9;border-left:4px solid #2b9da0;padding:12px 16px;border-radius:0 8px 8px 0;margin:6px 0;white-space:pre-wrap;font-size:14px}
+.empty{color:#aaa;font-style:italic}.scores{display:flex;gap:24px;margin:10px 0}.score b{font-size:30px;color:#16395c}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid #e0dad0;color:#999;font-size:11px;line-height:1.7}
+@media print{body{margin:0}}</style></head><body>
+<h1>Prairos</h1><div class="sub">Human judgment, precisely placed.</div>
+<div class="meta">${esc(st.name||'')} ${st.pid?'· '+esc(st.pid):''} · ${new Date().toLocaleDateString()}</div>
+${bl>0&&fl>0?`${sec('Your Growth',`<div class="scores"><div class="score">Start<br><b>${bl}</b>/40</div><div class="score">End<br><b>${fl}</b>/40</div><div class="score">Change<br><b>${fl-bl>0?'+':''}${fl-bl}</b></div></div><div class="box">${esc(getInsight(st.intel))}</div>`)}`:''}
+${sec('Your Situation',para(st.intake.sit))}
+${st.pf.stmt?sec('The Pattern You Named',para(st.pf.stmt)):''}
+${st.jm.def?sec('Your Judgment',para(st.jm.def)):''}
+${st.aiSum?sec('Working With AI',para(st.aiSum)):''}
+${st.sf.draft?sec('Your Judgment Story',para(st.sf.draft)):''}
+${sec('Your Next Move',`${para(st.pla.n7)}${st.pla.n30?para(st.pla.n30):''}<p style="font-size:13px;color:#718096;margin-top:6px">Where: ${esc(st.pla.dests.join(', ')||'—')}</p>`)}
+${st.pla.ucWho||st.pla.ucResult?sec('Check for Understanding',`<p style="font-size:13px;color:#718096">Who needs to understand this: ${esc(st.pla.ucWho||'—')}</p>${st.pla.ucWhat?para('What I want them to understand: '+st.pla.ucWhat):''}<p style="font-size:13px;color:#718096">What happened: ${esc(st.pla.ucResult||'Not shared yet')}</p>`):''}
+${st.testy.bef||st.testy.aft?sec('Your Reflections',`${para('Before: '+st.testy.bef)}${para('Now: '+st.testy.aft)}`):''}
+<div class="foot">Created with Prairos ${VERSION}, a professional-development prototype. It is not legal, HR, clinical, hiring, medical, or employment-selection advice, and makes no guarantee of employment, income, promotion, wage, or business outcomes. All drafts were generated from your own words for you to edit and own.</div>
+</body></html>`;
+}
+
+/* ── MAIN APP ── */
+function Prairos(){
+  const [st,set]=useState(mkSt());
+  const [loaded,setLoaded]=useState(false);
+  const [isMobile,setIsMobile]=useState(false);
+  const [sideOpen,setSideOpen]=useState(true);
+  const [toast,setToast]=useState('');
+  const [theme,setTheme]=useState('light');
+  const [welcomeBack,setWelcomeBack]=useState(false);
+  const [savedTick,setSavedTick]=useState(false);
+  const mainRef=useRef(null);
+
+  const flash=msg=>{setToast(msg);setTimeout(()=>setToast(''),2600);};
+
+  /* Apply theme variables to :root */
+  useEffect(()=>{
+    const vars=THEMES[theme]||THEMES.light;
+    Object.entries(vars).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
+    document.documentElement.style.colorScheme=theme;
+    if(document.body)document.body.style.background=vars['--c-bg'];
+  },[theme]);
+
+  /* Detect the user's preferred color scheme once on load */
+  useEffect(()=>{
+    try{const mq=window.matchMedia('(prefers-color-scheme: dark)');setTheme(mq.matches?'dark':'light');
+      const onChange=e=>setTheme(e.matches?'dark':'light');
+      mq.addEventListener?.('change',onChange);
+      return ()=>mq.removeEventListener?.('change',onChange);
+    }catch(e){}
+  },[]);
+
+  useEffect(()=>{
+    const check=()=>{const m=window.innerWidth<820;setIsMobile(m);setSideOpen(!m);};
+    check();
+    window.addEventListener('resize',check);
+    return ()=>window.removeEventListener('resize',check);
+  },[]);
+
+  useEffect(()=>{
+    const link=document.createElement('link');link.rel='stylesheet';
+    link.href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap';
+    document.head.appendChild(link);
+    const st2=document.createElement('style');
+    st2.textContent=`
+      button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #3fc4c4;outline-offset:2px}
+      ::placeholder{opacity:0.7}
+      @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+      @media (max-width:820px){
+        input,textarea,select{font-size:16px!important}  /* prevents iOS zoom-on-focus */
+        button{min-height:40px}
+      }
+    `;
+    document.head.appendChild(st2);
+  },[]);
+
+  useEffect(()=>{if(!loaded){loadState().then(saved=>{if(saved){set(prev=>({...mkSt(),...saved}));if(saved.done&&saved.done.length>0)setWelcomeBack(true);}setLoaded(true);});}},[loaded]);
+  useEffect(()=>{if(loaded){saveState(st);setSavedTick(true);const t=setTimeout(()=>setSavedTick(false),1200);return ()=>clearTimeout(t);}},[st,loaded]);
+  /* item 3: scroll to top of content on every view change */
+  useEffect(()=>{if(mainRef.current)mainRef.current.scrollTo({top:0,behavior:'auto'});window.scrollTo(0,0);},[st.view]);
+
+  const nav=id=>{set(p=>({...p,view:id}));if(isMobile)setSideOpen(false);};
+  const resetData=()=>{if(window.confirm('Reset all local data? This cannot be undone.')){const ns=mkSt();set(ns);saveState(ns);flash('All data cleared.');}};
+
+  const exportJSON=()=>{
+    try{const blob=new Blob([JSON.stringify(st,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`prairos-${VERSION}-${st.pid||'data'}-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);flash('Data file downloaded.');}
+    catch(e){flash('Download blocked here — try the downloaded HTML version in your browser.');}
+  };
+  const exportReport=()=>{
+    try{const blob=new Blob([buildReport(st)],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`prairos-${VERSION}-report-${st.pid||'me'}.html`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);flash('Report downloaded — open it in any browser.');}
+    catch(e){flash('Download blocked here — works in the downloaded HTML version.');}
+  };
+  const emailReport=()=>{
+    const subj=encodeURIComponent(`Prairos feedback request — ${st.name||st.pid||'participant'}`);
+    const body=encodeURIComponent(`Hi,\n\nI just finished Prairos and I'd like feedback.\n\nWhat I'd like a second opinion on:\n${st.feedback.note||'(see attached report)'}\n\nI'll attach my exported report (use "Export My Report" first, then attach the downloaded file).\n\nThanks,\n${st.name||''}`);
+    try{window.location.href=`mailto:${CONTACT_EMAIL}?subject=${subj}&body=${body}`;flash('Opening your email app. Attach your exported report file.');}
+    catch(e){flash(`Email this report to ${CONTACT_EMAIL}.`);}
+  };
+  const saveProgress=async()=>{const ok=await saveState(st);flash(ok?'Progress saved.':'Save failed — please Export your data as backup.');};
+  const handleFinish=async(finalSt)=>{
+    set(p=>({...p,view:'udash'}));
+    if(SHEET_URL){
+      flash('Sending your results...');
+      const ok=await submitToSheet(finalSt);
+      flash(ok?'Results sent. Thank you!':'Could not send automatically — please use Export My Report and email it.');
+    }
+  };
+
+  const VIEWS={
+    welcome:<WelcomeView st={st} set={set}/>,
+    intake:<IntakeView st={st} set={set}/>,
+    scores:<ScoresView st={st} set={set} which="bScore"/>,
+    intel:<IntelView st={st} set={set}/>,
+    precision:<PrecisionView st={st} set={set}/>,
+    jmap:<JMapView st={st} set={set}/>,
+    aibound:<AIBoundView st={st} set={set}/>,
+    story:<StoryView st={st} set={set}/>,
+    place:<PlaceView st={st} set={set}/>,
+    pace:<PaceView st={st} set={set}/>,
+    milestones:<MilestoneView st={st} set={set}/>,
+    final:<FinalView st={st} set={set} onSubmit={handleFinish}/>,
+    udash:<UserDashView st={st} set={set} onReport={exportReport} onEmail={emailReport}/>,
+    info:<InfoView/>,
+  };
+
+  return(
+    <div style={{fontFamily:"'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif",background:BG,minHeight:'100vh',display:'flex',flexDirection:'column',fontSize:14}}>
+      <header style={{background:N,color:CA,padding:'0 16px',display:'flex',alignItems:'center',height:54,flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,0.25)',zIndex:100}}>
+        <button type="button" onClick={()=>setSideOpen(!sideOpen)} aria-label="Menu" title="Show or hide the menu" style={{background:sideOpen?'transparent':'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:7,color:CA,cursor:'pointer',fontSize:15,padding:'5px 10px',marginRight:10,display:'flex',alignItems:'center',gap:6,fontFamily:'inherit',fontWeight:600}}>☰ <span style={{fontSize:12}}>Menu</span></button>
+        <Logo size={28} reversed={true}/>
+        <div style={{marginLeft:10}}><div style={{display:'flex',alignItems:'baseline',gap:6}}><Wordmark size={18} color={CA}/><span style={{fontSize:10,fontWeight:600,color:'rgba(255,255,255,0.45)'}}>{VERSION}</span></div><div style={{fontSize:10,color:T,fontWeight:600,display:isMobile?'none':'block'}}>Human judgment, precisely placed.</div></div>
+        <div style={{flex:1}}/>
+        {savedTick&&<span style={{fontSize:11,color:'rgba(255,255,255,0.7)',marginRight:10,display:'flex',alignItems:'center',gap:4}}>Saved ✓</span>}
+        <button type="button" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'} title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} style={{background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:7,color:CA,cursor:'pointer',fontSize:14,padding:'5px 10px',marginRight:isMobile?0:10,fontFamily:'inherit'}}>{theme==='dark'?'☀':'☾'}</button>
+        <div style={{display:isMobile?'none':'flex',gap:6}}>
+          <Btn onClick={saveProgress} variant="ghost" size="sm" style={{color:CA,borderColor:'rgba(255,255,255,0.25)'}}>Save</Btn>
+          <Btn onClick={exportJSON} variant="ghost" size="sm" style={{color:CA,borderColor:'rgba(255,255,255,0.25)'}}>Export Data</Btn>
+          <Btn onClick={()=>{flash('Opening print dialog...');setTimeout(()=>window.print(),300);}} variant="ghost" size="sm" style={{color:CA,borderColor:'rgba(255,255,255,0.25)'}}>Print</Btn>
+          <Btn onClick={resetData} variant="ghost" size="sm" style={{color:'#fca5a5',borderColor:'rgba(252,165,165,0.25)'}}>Reset</Btn>
+        </div>
+      </header>
+
+      <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+        {sideOpen&&isMobile&&(<div onClick={()=>setSideOpen(false)} style={{position:'fixed',top:54,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',zIndex:90}}/>)}
+        {sideOpen&&(
+          <nav style={isMobile?{position:'fixed',top:54,left:0,bottom:0,width:230,background:N,color:CA,overflowY:'auto',zIndex:95,boxShadow:'4px 0 24px rgba(0,0,0,0.35)'}:{width:210,background:N,color:CA,flexShrink:0,overflowY:'auto'}}>
+            <div style={{padding:'6px 0'}}>{NAV_ITEMS.map(item=>{const isDone=st.done.includes(item.id);const isCur=st.view===item.id;return(<button key={item.id} type="button" onClick={()=>nav(item.id)} style={{width:'100%',padding:'8px 12px 8px 14px',textAlign:'left',background:isCur?T:'transparent',border:'none',color:isCur?CA:'rgba(255,255,255,0.75)',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:isCur?700:400,display:'flex',alignItems:'center',gap:8,borderLeft:`3px solid ${isCur?CA:isDone?T:'transparent'}`}}><span style={{fontSize:12,opacity:isCur?1:0.65}}>{item.icon}</span><span style={{flex:1}}>{item.label}</span>{isDone&&!isCur&&<span style={{fontSize:8,color:T}}>✓</span>}</button>);})}</div>
+            <div style={{padding:'10px 12px',borderTop:'1px solid rgba(255,255,255,0.08)'}}><Btn onClick={exportReport} variant="secondary" size="sm" style={{width:'100%',justifyContent:'center',fontSize:11}}>Export My Report</Btn></div>
+            {isMobile&&(<div style={{padding:'10px 12px',borderTop:'1px solid rgba(255,255,255,0.08)',display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}><Btn onClick={saveProgress} variant="secondary" size="sm" style={{justifyContent:'center',fontSize:11}}>Save</Btn><Btn onClick={exportJSON} variant="secondary" size="sm" style={{justifyContent:'center',fontSize:11}}>Export Data</Btn><Btn onClick={()=>{flash('Opening print dialog...');setTimeout(()=>window.print(),300);}} variant="secondary" size="sm" style={{justifyContent:'center',fontSize:11}}>Print</Btn><Btn onClick={resetData} variant="secondary" size="sm" style={{justifyContent:'center',fontSize:11,color:'#fca5a5'}}>Reset</Btn></div>)}
+            <div style={{padding:'10px 12px',borderTop:'1px solid rgba(255,255,255,0.06)'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)',lineHeight:1.55}}>A professional-development prototype. Not legal, HR, or employment advice. No outcome guarantees. Saved on your device; results are sent only when you choose Finish.</div></div>
+          </nav>
+        )}
+        <main ref={mainRef} style={{flex:1,overflowY:'auto',padding:isMobile?'18px 16px':'28px 32px'}}>
+          {(()=>{const FLOW=['intake','scores','intel','precision','jmap','aibound','story','place','pace','milestones','final'];const idx=FLOW.indexOf(st.view);if(idx<0)return null;const pct=Math.round(((idx+1)/FLOW.length)*100);return(<div style={{maxWidth:760,margin:'0 auto 18px'}}><div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:TL,marginBottom:4}}><span>Step {idx+1} of {FLOW.length}</span><span>{pct}% through</span></div><div style={{background:BO,borderRadius:100,height:6,overflow:'hidden'}}><div style={{width:pct+'%',height:'100%',background:T,borderRadius:100,transition:'width 0.4s'}}/></div></div>);})()}
+          {welcomeBack&&(<div style={{maxWidth:760,margin:'0 auto 18px',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderRadius:10,background:TLt,border:`1px solid ${T}40`,color:TX,fontSize:13}}><span style={{fontSize:16}}>👋</span><span style={{flex:1}}>Welcome back — your work was saved. You're picking up right where you left off.</span><button type="button" onClick={()=>setWelcomeBack(false)} style={{background:'none',border:'none',color:TL,cursor:'pointer',fontSize:16,fontFamily:'inherit'}}>×</button></div>)}
+          {VIEWS[st.view]||VIEWS.welcome}
+        </main>      </div>
+
+      {toast&&<div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:N,color:CA,padding:'12px 22px',borderRadius:10,fontSize:13,fontWeight:600,boxShadow:'0 6px 24px rgba(0,0,0,0.3)',zIndex:1000,maxWidth:'90vw',textAlign:'center'}}>{toast}</div>}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Prairos />);
+</script>
+</body>
+</html>
